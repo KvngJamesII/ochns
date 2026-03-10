@@ -115,7 +115,7 @@ export default function CliDocs() {
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">1</span>
                 <h3 className="font-medium">Set your server URL</h3>
               </div>
-              <CopyBlock text="vpush server https://your-vpush-server.com" label="set-server" />
+              <CopyBlock text="vpush server https://vpush.tech" label="set-server" />
             </div>
 
             <div>

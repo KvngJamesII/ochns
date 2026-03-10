@@ -378,7 +378,7 @@ async function cmdLogin() {
   const config = getConfig();
   if (!config.server) {
     const server = await prompt(
-      `${c.cyan}Server URL${c.reset} ${c.dim}(e.g. https://your-app.replit.app)${c.reset}: `
+      `${c.cyan}Server URL${c.reset} ${c.dim}(e.g. https://vpush.tech)${c.reset}: `
     );
     if (!server) {
       error("Server URL is required");
@@ -879,7 +879,7 @@ ${c.bold}COMMANDS${c.reset}
   ${c.cyan}server${c.reset} <url>       Set or show server URL
 
 ${c.bold}GETTING STARTED${c.reset} ${c.dim}(copy these from your dashboard)${c.reset}
-  ${c.dim}1.${c.reset} vpush server https://your-app.replit.app
+  ${c.dim}1.${c.reset} vpush server https://vpush.tech
   ${c.dim}2.${c.reset} vpush token <paste-token-from-dashboard>
   ${c.dim}3.${c.reset} cd your-project && vpush init
   ${c.dim}4.${c.reset} vpush push

@@ -162,30 +162,6 @@ export default function Settings() {
               API tokens authenticate the CLI without needing to enter your password. Generate a token here, then paste it on your server.
             </p>
 
-            <div className="bg-muted/30 rounded-lg border border-border/50 mb-4">
-              <div className="px-4 py-2.5 border-b border-border/50 flex items-center gap-2 text-xs text-muted-foreground font-medium">
-                <Terminal className="w-3.5 h-3.5" />
-                Quick Setup
-              </div>
-              <div className="p-4 space-y-2">
-                <p className="text-xs text-muted-foreground">Download CLI and set token on your server:</p>
-                <div className="relative">
-                  <pre className="bg-background border border-border rounded-lg p-3 pr-10 text-xs font-mono overflow-x-auto" data-testid="text-cli-setup">
-                    curl -o vpush.js {window.location.origin}/cli/index.js
-                  </pre>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="absolute top-1.5 right-1.5 h-7 w-7"
-                    onClick={() => copyToClipboard(`curl -o vpush.js ${window.location.origin}/cli/index.js`)}
-                    data-testid="button-copy-cli-download"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-
             {tokensLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -300,13 +276,13 @@ export default function Settings() {
                   <Label className="text-sm">Your setup command</Label>
                   <div className="relative">
                     <pre className="bg-muted/50 border border-border rounded-lg p-3 pr-10 text-xs font-mono overflow-x-auto break-all whitespace-pre-wrap" data-testid="text-generated-token-cmd">
-                      node vpush.js server {window.location.origin} && node vpush.js token {generatedToken}
+                      node vpush.js server https://vpush.tech && node vpush.js token {generatedToken}
                     </pre>
                     <Button
                       size="icon"
                       variant="ghost"
                       className="absolute top-1.5 right-1.5 h-7 w-7"
-                      onClick={() => copyToClipboard(`node vpush.js server ${window.location.origin} && node vpush.js token ${generatedToken}`)}
+                      onClick={() => copyToClipboard(`node vpush.js server https://vpush.tech && node vpush.js token ${generatedToken}`)}
                       data-testid="button-copy-generated-token"
                     >
                       {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
