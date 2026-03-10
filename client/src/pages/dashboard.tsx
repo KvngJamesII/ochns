@@ -33,12 +33,6 @@ import {
   Loader2,
   Search,
   Terminal,
-  Copy,
-  Key,
-  Trash2,
-  Check,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -50,9 +44,6 @@ export default function Dashboard() {
   const [showCreate, setShowCreate] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [newProject, setNewProject] = useState({ name: "", description: "", visibility: "public" });
-  const [showTokenSetup, setShowTokenSetup] = useState(false);
-  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
   const { toast } = useToast();
 
   if (!authLoading && !isAuthenticated) {
@@ -81,26 +72,6 @@ export default function Dashboard() {
     },
   });
 
-  const generateTokenMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/auth/token", { name: "CLI Token" });
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      setGeneratedToken(data.token);
-    },
-    onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(label);
-    setTimeout(() => setCopied(null), 2000);
-    toast({ title: "Copied to clipboard" });
-  };
-
   const filteredProjects = projects?.filter(
     (p) =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -127,15 +98,12 @@ export default function Dashboard() {
               </h1>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => { setShowTokenSetup(true); setGeneratedToken(null); }}
-                className="gap-2"
-                data-testid="button-cli-setup"
-              >
-                <Terminal className="w-4 h-4" />
-                CLI Setup
-              </Button>
+              <Link href="/settings">
+                <Button variant="outline" className="gap-2" data-testid="button-cli-setup">
+                  <Terminal className="w-4 h-4" />
+                  CLI Setup
+                </Button>
+              </Link>
               <Button onClick={() => setShowCreate(true)} className="gap-2" data-testid="button-new-project">
                 <Plus className="w-4 h-4" />
                 New Project
@@ -350,114 +318,6 @@ export default function Dashboard() {
                 </Button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showTokenSetup} onOpenChange={(open) => { setShowTokenSetup(open); if (!open) setGeneratedToken(null); }}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle style={{ fontFamily: "'Space Grotesk', sans-serif" }} className="flex items-center gap-2">
-                <Terminal className="w-5 h-5" />
-                CLI Setup
-              </DialogTitle>
-              <DialogDescription>
-                Get started with VPush CLI on your server in 3 steps. No terminal login required.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 mt-2">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</span>
-                  Download the CLI
-                </div>
-                <div className="relative">
-                  <pre className="bg-muted/50 border border-border rounded-lg p-3 pr-10 text-xs font-mono overflow-x-auto" data-testid="text-cli-download-cmd">
-                    curl -o vpush.js {window.location.origin}/cli/index.js
-                  </pre>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="absolute top-1.5 right-1.5 h-7 w-7"
-                    onClick={() => copyToClipboard(`curl -o vpush.js ${window.location.origin}/cli/index.js`, "download")}
-                    data-testid="button-copy-download"
-                  >
-                    {copied === "download" ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">2</span>
-                  Generate & set your token
-                </div>
-                {!generatedToken ? (
-                  <Button
-                    onClick={() => generateTokenMutation.mutate()}
-                    disabled={generateTokenMutation.isPending}
-                    variant="outline"
-                    className="gap-2 w-full"
-                    data-testid="button-generate-token"
-                  >
-                    {generateTokenMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Key className="w-4 h-4" />
-                    )}
-                    Generate API Token
-                  </Button>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <pre className="bg-muted/50 border border-border rounded-lg p-3 pr-10 text-xs font-mono overflow-x-auto break-all whitespace-pre-wrap" data-testid="text-cli-token-cmd">
-                        node vpush.js server {window.location.origin} && node vpush.js token {generatedToken}
-                      </pre>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="absolute top-1.5 right-1.5 h-7 w-7"
-                        onClick={() => copyToClipboard(`node vpush.js server ${window.location.origin} && node vpush.js token ${generatedToken}`, "token")}
-                        data-testid="button-copy-token"
-                      >
-                        {copied === "token" ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-amber-500 flex items-center gap-1">
-                      <EyeOff className="w-3 h-3" />
-                      Copy this now — you won't see this token again.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">3</span>
-                  Init & pull your project
-                </div>
-                <div className="relative">
-                  <pre className="bg-muted/50 border border-border rounded-lg p-3 pr-10 text-xs font-mono overflow-x-auto" data-testid="text-cli-init-cmd">
-                    node vpush.js init{"\n"}node vpush.js pull
-                  </pre>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="absolute top-1.5 right-1.5 h-7 w-7"
-                    onClick={() => copyToClipboard("node vpush.js init && node vpush.js pull", "init")}
-                    data-testid="button-copy-init"
-                  >
-                    {copied === "init" ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="border-t border-border pt-3">
-                <p className="text-xs text-muted-foreground">
-                  That's it — no terminal login needed. The token stays saved at <code className="text-foreground">~/.vpush/config.json</code> so you're always authenticated.
-                </p>
-              </div>
-            </div>
           </DialogContent>
         </Dialog>
       </main>

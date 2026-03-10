@@ -17,7 +17,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Terminal, LogOut, LayoutDashboard, ChevronDown, Sun, Moon, Shield, Bell, Check, Megaphone, Info } from "lucide-react";
+import { Terminal, LogOut, LayoutDashboard, ChevronDown, Sun, Moon, Shield, Bell, Check, Megaphone, Info, BookOpen, Settings } from "lucide-react";
 
 interface NotificationItem {
   id: string;
@@ -216,6 +216,18 @@ export function Header() {
                     <Link href="/dashboard" className="flex items-center gap-2 cursor-pointer" data-testid="link-dashboard">
                       <LayoutDashboard className="w-4 h-4" />
                       Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/docs/cli" className="flex items-center gap-2 cursor-pointer" data-testid="link-docs">
+                      <BookOpen className="w-4 h-4" />
+                      Docs
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings" className="flex items-center gap-2 cursor-pointer" data-testid="link-settings">
+                      <Settings className="w-4 h-4" />
+                      Settings
                     </Link>
                   </DropdownMenuItem>
                   {isAdmin && (

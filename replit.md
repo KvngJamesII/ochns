@@ -22,6 +22,8 @@ client/src/
     admin.tsx            - Admin panel (stats, users, contacts, announcements)
     terms.tsx            - Terms of Service page
     contact.tsx          - Contact Us page (posts to /api/contacts)
+    cli-docs.tsx         - CLI documentation page
+    settings.tsx         - User settings (profile, API tokens, logout)
     not-found.tsx        - 404 page
   components/
     header.tsx           - Navigation header with theme toggle
@@ -41,7 +43,7 @@ server/
   db.ts        - Database connection
 
 shared/
-  schema.ts    - Drizzle schemas (users, projects, files, fileVersions, announcements, contacts, notifications)
+  schema.ts    - Drizzle schemas (users, projects, files, fileVersions, announcements, contacts, notifications, apiTokens)
 ```
 
 ## Database Tables
@@ -108,6 +110,7 @@ shared/
 - /auth?mode=login|register - Auth page (register is default)
 - /dashboard - User dashboard
 - /admin - Admin panel (idledev only)
+- /settings - User settings (profile, API tokens, logout)
 - /terms - Terms of Service
 - /contact - Contact Us
 - /:username/:projectId - Project file manager

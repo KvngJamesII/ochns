@@ -115,15 +115,18 @@ export default function CliDocs() {
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">1</span>
                 <h3 className="font-medium">Set your server URL</h3>
               </div>
-              <CopyBlock text="vpush server https://your-vpush-server.replit.app" label="set-server" />
+              <CopyBlock text="vpush server https://your-vpush-server.com" label="set-server" />
             </div>
 
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">2</span>
-                <h3 className="font-medium">Sign in with your account</h3>
+                <h3 className="font-medium">Set your API token</h3>
               </div>
-              <CopyBlock text="vpush login" label="login" />
+              <p className="text-xs text-muted-foreground mb-2">
+                Generate a token from your <a href="/settings" className="text-primary hover:underline">Settings page</a>, then paste it here.
+              </p>
+              <CopyBlock text="vpush token YOUR_TOKEN_HERE" label="token" />
             </div>
 
             <div>
@@ -140,9 +143,20 @@ export default function CliDocs() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">4</span>
-                <h3 className="font-medium">Push your files</h3>
+                <h3 className="font-medium">Push or pull your files</h3>
               </div>
               <CopyBlock text="vpush push" label="push" />
+              <p className="text-xs text-muted-foreground mt-2">
+                Use <code className="px-1 py-0.5 rounded bg-muted font-mono">vpush pull</code> to download files from the server instead.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5">
+              <h3 className="text-sm font-semibold mb-2">Alternative: Interactive login</h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                If you prefer, you can sign in interactively instead of using a token. This will prompt for your username and password and generate a token automatically.
+              </p>
+              <CopyBlock text="vpush login" label="login-alt" />
             </div>
           </div>
         </section>
@@ -161,14 +175,15 @@ export default function CliDocs() {
               </thead>
               <tbody>
                 {[
-                  ["vpush login", "Sign in to your VPush account"],
-                  ["vpush logout", "Sign out"],
-                  ["vpush whoami", "Show current signed-in user"],
+                  ["vpush server <url>", "Set or show server URL"],
+                  ["vpush token <token>", "Set an API token for authentication"],
                   ["vpush init", "Initialize project in current directory"],
                   ["vpush push", "Push local files to server"],
                   ["vpush pull", "Pull files from server to local"],
                   ["vpush status", "Show connection and project status"],
-                  ["vpush server <url>", "Set or show server URL"],
+                  ["vpush whoami", "Show current signed-in user"],
+                  ["vpush login", "Interactive sign-in (alternative to token)"],
+                  ["vpush logout", "Sign out and remove stored token"],
                 ].map(([cmd, desc]) => (
                   <tr key={cmd} className="border-b border-border/50 last:border-0">
                     <td className="px-4 py-3 font-mono text-sm text-primary">{cmd}</td>
