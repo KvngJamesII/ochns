@@ -1,0 +1,225 @@
+I want to build a web platform and CLI tool called VPush that allows users to easily push and pull files between their VPS and a hosted project storage system, similar to Git but focused on simple file deployment and management.
+
+The system will consist of two main parts:
+
+A web platform for project and file management
+
+A CLI command tool (vpush) for VPS interaction
+
+The goal is to make file syncing between a server and a hosted project extremely simple.
+
+Core Concept
+
+A user signs up on the website and can create projects. Each project acts like a remote file repository where files and folders can be stored and managed.
+
+Example project URL:
+
+https://vpush.tech/{username}/{project_id}
+
+Example:
+
+https://vpush.tech/samuel/projid377813438217
+
+This project acts as the remote storage that users can interact with using the vpush CLI command.
+
+User Accounts
+
+Users must be able to:
+
+Sign up
+
+Log in
+
+Manage their profile
+
+View their projects dashboard
+
+Each user has a username that becomes part of the project URL.
+
+Project Creation
+
+When creating a project, the user must enter:
+
+Project name
+
+Optional description
+
+Project mode
+
+Public
+
+Private
+
+After creation, the system generates a unique project ID.
+
+Example project URL structure:
+
+https://vpush.tech/{username}/{project_id}
+
+Project Page (Web Interface)
+
+Each project should have a file manager interface similar to GitHub or a cloud drive.
+
+Users should be able to:
+
+Create folders
+
+Upload files
+
+Upload ZIP files
+
+Extract ZIP files
+
+Rename files
+
+Delete files
+
+Move files between folders
+
+View file sizes
+
+Download files
+
+Preview certain file types (text, images, code)
+
+The interface should feel clean and fast like GitHub's file browser.
+
+Project Visibility Modes
+
+Public Project
+
+If a project is public:
+
+Anyone with the project URL can view the files.
+
+Files can be downloaded.
+
+The project page is accessible without authentication.
+
+Private Project
+
+If a project is private:
+
+Visitors must enter an Auth PIN to access it.
+
+The project owner generates the Auth PIN in project settings.
+
+The Auth PIN acts as a password to view or pull the project.
+
+Project Settings
+
+Each project should have settings where the owner can:
+
+Change project name
+
+Change project description
+
+Switch project mode (public/private)
+
+Generate or regenerate Auth PIN
+
+Delete the project
+
+CLI Tool (vpush)
+
+The platform should include a CLI tool called:
+
+vpush
+
+This tool allows users to push and pull files from their VPS to their project storage.
+
+Example usage:
+
+Pull project files from the remote project to VPS:
+
+vpush pull https://vpush.tech/samuel/projid377813438217
+
+Push local VPS files to the project:
+
+vpush push https://vpush.tech/samuel/projid377813438217
+
+If the project is private, the CLI should prompt:
+
+Enter Auth PIN:
+
+Once the correct PIN is entered, the operation proceeds.
+
+CLI Features
+
+The CLI tool should support:
+
+vpush pull → download files from project to VPS
+
+vpush push → upload files from VPS to project
+
+vpush sync → sync local directory with project
+
+vpush status → show file differences between local and remote
+
+vpush login → authenticate user
+
+vpush init → link current folder to a project
+
+File Sync Behavior
+
+When pushing files:
+
+New files should upload
+
+Modified files should update
+
+Deleted files can optionally be removed from remote
+
+When pulling files:
+
+Only changed files should download
+
+Avoid unnecessary re-downloads
+
+This should behave similar to basic Git syncing, but simpler.
+
+Security
+
+For private projects:
+
+Auth PIN required for web access
+
+Auth PIN required for CLI pull/push
+
+Rate limit PIN attempts
+
+Additional security ideas:
+
+Token-based authentication for CLI
+
+Expiring access tokens
+
+Optional IP restrictions
+
+Additional Features (Optional but Recommended)
+
+Project versioning:
+Users can restore previous file versions.
+
+File activity logs:
+Show who uploaded, modified, or deleted files.
+
+Deployment feature:
+Allow a project to auto-deploy to a server after push.
+
+Webhook support:
+Trigger scripts when files change.
+
+Performance Considerations
+
+Efficient file uploads
+
+Chunked uploads for large files
+
+Fast folder browsing
+
+CDN for file downloads
+
+Background processing for zip extraction, i have my vpush.tech domain ill later set, When users open a file in the project page, they should be able to edit it directly like GitHub or VS Code online. So if someone wants to quickly fix a config file or update a script, they don’t even need to SSH into the VPS. Just edit in the browser, click save, and it updates the project storage. Then the user can run vpush pull on their server to sync the change.
+
+Another feature that would be insanely useful is file change history. Not full Git commits, just simple version snapshots. Every time a file changes, the system keeps the previous version. If a user breaks something, they can roll back to an older version instantly. That prevents a lot of headaches., mainly the site shold be mobile and desktop optimized, youll also have to add high tech seo optimiztation so it appears in google searches
