@@ -119,7 +119,6 @@ export default function Landing() {
               className="mt-6 text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed"
               data-testid="text-hero-description"
             >
-              Push, pull, and sync files between your server and cloud storage.
               Push, pull, and manage your files from the terminal.
             </motion.p>
 
