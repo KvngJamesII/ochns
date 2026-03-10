@@ -55,7 +55,29 @@ import {
   Save,
   Copy,
   Check,
+  FileCode2,
+  FileJson,
+  FileType,
+  Image,
+  FileSpreadsheet,
+  Braces,
 } from "lucide-react";
+import {
+  SiPython,
+  SiJavascript,
+  SiTypescript,
+  SiHtml5,
+  SiCss3,
+  SiReact,
+  SiMarkdown,
+  SiRust,
+  SiGo,
+  SiPhp,
+  SiRuby,
+  SiSwift,
+  SiCplusplus,
+  SiGnubash,
+} from "react-icons/si";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { FileRecord, FileVersion } from "@shared/schema";
@@ -71,9 +93,86 @@ function formatBytes(bytes: number): string {
 function getFileIcon(name: string, isDirectory: boolean) {
   if (isDirectory) return <Folder className="w-4 h-4 text-primary" />;
   const ext = name.split(".").pop()?.toLowerCase();
-  const codeExts = ["js", "ts", "jsx", "tsx", "py", "rb", "go", "rs", "java", "c", "cpp", "h", "css", "scss", "html", "xml", "json", "yaml", "yml", "toml", "md", "sh", "bash", "sql", "php"];
-  if (codeExts.includes(ext || "")) return <FileText className="w-4 h-4 text-orange-500" />;
+  const iconMap: Record<string, { icon: any; color: string }> = {
+    py: { icon: SiPython, color: "text-[#3776AB]" },
+    js: { icon: SiJavascript, color: "text-[#F7DF1E]" },
+    mjs: { icon: SiJavascript, color: "text-[#F7DF1E]" },
+    cjs: { icon: SiJavascript, color: "text-[#F7DF1E]" },
+    ts: { icon: SiTypescript, color: "text-[#3178C6]" },
+    jsx: { icon: SiReact, color: "text-[#61DAFB]" },
+    tsx: { icon: SiReact, color: "text-[#61DAFB]" },
+    html: { icon: SiHtml5, color: "text-[#E34F26]" },
+    htm: { icon: SiHtml5, color: "text-[#E34F26]" },
+    css: { icon: SiCss3, color: "text-[#1572B6]" },
+    scss: { icon: SiCss3, color: "text-[#CD6799]" },
+    md: { icon: SiMarkdown, color: "text-muted-foreground" },
+    mdx: { icon: SiMarkdown, color: "text-muted-foreground" },
+    rs: { icon: SiRust, color: "text-[#DEA584]" },
+    go: { icon: SiGo, color: "text-[#00ADD8]" },
+    php: { icon: SiPhp, color: "text-[#777BB4]" },
+    rb: { icon: SiRuby, color: "text-[#CC342D]" },
+    swift: { icon: SiSwift, color: "text-[#F05138]" },
+    cpp: { icon: SiCplusplus, color: "text-[#00599C]" },
+    c: { icon: SiCplusplus, color: "text-[#A8B9CC]" },
+    h: { icon: SiCplusplus, color: "text-[#A8B9CC]" },
+    sh: { icon: SiGnubash, color: "text-[#4EAA25]" },
+    bash: { icon: SiGnubash, color: "text-[#4EAA25]" },
+    zsh: { icon: SiGnubash, color: "text-[#4EAA25]" },
+    json: { icon: Braces, color: "text-[#F7DF1E]" },
+    yaml: { icon: FileCode2, color: "text-[#CB171E]" },
+    yml: { icon: FileCode2, color: "text-[#CB171E]" },
+    toml: { icon: FileCode2, color: "text-[#9C4121]" },
+    xml: { icon: FileCode2, color: "text-orange-500" },
+    sql: { icon: FileSpreadsheet, color: "text-[#336791]" },
+    csv: { icon: FileSpreadsheet, color: "text-green-600" },
+    png: { icon: Image, color: "text-purple-500" },
+    jpg: { icon: Image, color: "text-purple-500" },
+    jpeg: { icon: Image, color: "text-purple-500" },
+    gif: { icon: Image, color: "text-purple-500" },
+    svg: { icon: Image, color: "text-orange-500" },
+    webp: { icon: Image, color: "text-purple-500" },
+    txt: { icon: FileText, color: "text-muted-foreground" },
+    log: { icon: FileText, color: "text-muted-foreground" },
+    env: { icon: FileCode2, color: "text-yellow-600" },
+  };
+
+  const match = iconMap[ext || ""];
+  if (match) {
+    const Icon = match.icon;
+    return <Icon className={`w-4 h-4 ${match.color}`} />;
+  }
+
+  const codeExts = ["java", "kt", "dart", "lua", "r", "pl", "ex", "exs", "elm", "hs", "scala", "clj", "vue", "svelte", "astro", "ini", "cfg", "conf", "dockerfile", "makefile"];
+  if (codeExts.includes(ext || "") || name.toLowerCase() === "dockerfile" || name.toLowerCase() === "makefile") {
+    return <FileCode2 className="w-4 h-4 text-orange-500" />;
+  }
+
   return <File className="w-4 h-4 text-muted-foreground" />;
+}
+
+function getLanguageLabel(name: string): string {
+  const ext = name.split(".").pop()?.toLowerCase();
+  const langMap: Record<string, string> = {
+    py: "Python", js: "JavaScript", mjs: "JavaScript", cjs: "JavaScript",
+    ts: "TypeScript", jsx: "React JSX", tsx: "React TSX",
+    html: "HTML", htm: "HTML", css: "CSS", scss: "SCSS", sass: "Sass",
+    json: "JSON", yaml: "YAML", yml: "YAML", toml: "TOML", xml: "XML",
+    md: "Markdown", mdx: "MDX",
+    rs: "Rust", go: "Go", php: "PHP", rb: "Ruby", swift: "Swift",
+    cpp: "C++", c: "C", h: "C Header", cs: "C#",
+    java: "Java", kt: "Kotlin", dart: "Dart",
+    sh: "Shell", bash: "Bash", zsh: "Zsh", bat: "Batch", ps1: "PowerShell",
+    sql: "SQL", r: "R", lua: "Lua", pl: "Perl",
+    ex: "Elixir", exs: "Elixir", elm: "Elm", hs: "Haskell",
+    scala: "Scala", clj: "Clojure",
+    vue: "Vue", svelte: "Svelte", astro: "Astro",
+    txt: "Plain Text", log: "Log", csv: "CSV",
+    env: "Environment", ini: "INI", cfg: "Config", conf: "Config",
+    dockerfile: "Dockerfile", makefile: "Makefile",
+  };
+  if (name.toLowerCase() === "dockerfile") return "Dockerfile";
+  if (name.toLowerCase() === "makefile") return "Makefile";
+  return langMap[ext || ""] || "File";
 }
 
 function isTextFile(name: string): boolean {
@@ -723,29 +822,46 @@ export default function ProjectView() {
       </AlertDialog>
 
       <Dialog open={!!viewingFile} onOpenChange={() => { setViewingFile(null); setIsEditing(false); }}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <div className="flex items-center justify-between pr-8">
-              <DialogTitle className="flex items-center gap-2 text-sm font-mono">
-                {viewingFile && getFileIcon(viewingFile.name, false)}
-                {viewingFile?.name}
-              </DialogTitle>
-              <div className="flex items-center gap-2">
-                {isOwner && viewingFile && isTextFile(viewingFile.name) && !isEditing && (
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden [&>button]:text-[#8b949e] [&>button]:hover:text-white [&>button]:top-2.5 [&>button]:right-3 [&>button]:z-10">
+          <DialogTitle className="sr-only">{viewingFile?.name || "File"}</DialogTitle>
+          <DialogDescription className="sr-only">View and edit file content</DialogDescription>
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#30363d] bg-[#161b22] pr-10">
+            <div className="flex items-center gap-2 min-w-0">
+              {viewingFile && getFileIcon(viewingFile.name, false)}
+              <span className="text-sm font-mono text-[#e6edf3] font-medium truncate">{viewingFile?.name}</span>
+              <Badge variant="secondary" className="text-[10px] h-5 bg-[#30363d] text-[#8b949e] border-0">
+                {viewingFile ? getLanguageLabel(viewingFile.name) : ""}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              {isOwner && viewingFile && isTextFile(viewingFile.name) && !isEditing && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs border-[#30363d] bg-transparent text-[#c9d1d9] hover:bg-[#30363d] hover:text-[#e6edf3]"
+                  onClick={() => setIsEditing(true)}
+                  data-testid="button-edit-file"
+                >
+                  <Pencil className="w-3 h-3" /> Edit
+                </Button>
+              )}
+              {isEditing && (
+                <>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 gap-1.5 text-xs"
-                    onClick={() => setIsEditing(true)}
-                    data-testid="button-edit-file"
+                    className="h-7 gap-1.5 text-xs border-[#30363d] bg-transparent text-[#c9d1d9] hover:bg-[#30363d]"
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditContent(viewingFile?.content || "");
+                    }}
+                    data-testid="button-cancel-edit"
                   >
-                    <Pencil className="w-3 h-3" /> Edit
+                    Cancel
                   </Button>
-                )}
-                {isEditing && (
                   <Button
                     size="sm"
-                    className="h-7 gap-1.5 text-xs"
+                    className="h-7 gap-1.5 text-xs bg-[#238636] hover:bg-[#2ea043] border-0 text-white"
                     onClick={() =>
                       viewingFile && saveFileMutation.mutate({ id: viewingFile.id, content: editContent })
                     }
@@ -759,24 +875,46 @@ export default function ProjectView() {
                     )}
                     Save
                   </Button>
-                )}
-              </div>
+                </>
+              )}
             </div>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto rounded-lg border border-border bg-[#0d1117]">
+          </div>
+          <div className="flex-1 overflow-auto bg-[#0d1117]">
             {isEditing ? (
-              <textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="w-full h-full min-h-[400px] bg-transparent text-[#e6edf3] font-mono text-sm p-4 resize-none outline-none"
-                spellCheck={false}
-                data-testid="textarea-file-editor"
-              />
+              <div className="flex min-h-[450px]">
+                <div className="select-none text-right pr-3 pl-4 py-3 text-[#484f58] font-mono text-sm leading-[1.45rem] border-r border-[#21262d] bg-[#0d1117] flex-shrink-0" aria-hidden="true">
+                  {editContent.split("\n").map((_, i) => (
+                    <div key={i}>{i + 1}</div>
+                  ))}
+                </div>
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="w-full min-h-[450px] bg-transparent text-[#e6edf3] font-mono text-sm py-3 px-4 resize-none outline-none leading-[1.45rem]"
+                  spellCheck={false}
+                  data-testid="textarea-file-editor"
+                />
+              </div>
             ) : (
-              <pre className="text-sm text-[#e6edf3] font-mono p-4 overflow-x-auto whitespace-pre-wrap break-words">
-                {viewingFile?.content || "(empty file)"}
-              </pre>
+              <div className="flex">
+                <div className="select-none text-right pr-3 pl-4 py-3 text-[#484f58] font-mono text-sm leading-[1.45rem] border-r border-[#21262d] bg-[#0d1117] flex-shrink-0" aria-hidden="true">
+                  {(viewingFile?.content || " ").split("\n").map((_, i) => (
+                    <div key={i}>{i + 1}</div>
+                  ))}
+                </div>
+                <pre className="text-sm text-[#e6edf3] font-mono py-3 px-4 overflow-x-auto whitespace-pre leading-[1.45rem] flex-1" data-testid="pre-file-content">
+                  {viewingFile?.content || "(empty file)"}
+                </pre>
+              </div>
             )}
+          </div>
+          <div className="flex items-center justify-between px-4 py-1.5 border-t border-[#30363d] bg-[#161b22] text-[10px] text-[#8b949e] font-mono">
+            <div className="flex items-center gap-3">
+              <span>{viewingFile ? getLanguageLabel(viewingFile.name) : ""}</span>
+              <span>{isEditing ? editContent.split("\n").length : (viewingFile?.content || "").split("\n").length} lines</span>
+              <span>{viewingFile ? formatBytes(isEditing ? new Blob([editContent]).size : (viewingFile.size || 0)) : ""}</span>
+            </div>
+            <span>{isEditing ? "Editing" : "Read-only"}</span>
           </div>
         </DialogContent>
       </Dialog>

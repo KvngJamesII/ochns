@@ -242,14 +242,14 @@ export async function registerRoutes(
       if (project.userId !== (req.user as any).id) return res.status(403).json({ message: "Forbidden" });
 
       const { name, parentPath = "/", isDirectory = false, content = "" } = req.body;
-      const path = parentPath === "/" ? `/${name}` : `${parentPath}/${name}`;
+      const filePath = parentPath === "/" ? `/${name}` : `${parentPath}/${name}`;
 
-      const existing = await storage.getFileByPath(project.projectId, path);
+      const existing = await storage.getFileByPath(project.projectId, filePath);
       if (existing) return res.status(400).json({ message: "File already exists at this path" });
 
       const file = await storage.createFile(project.projectId, {
         name,
-        path,
+        path: filePath,
         isDirectory,
         content: isDirectory ? null : content,
         size: isDirectory ? 0 : Buffer.byteLength(content || "", "utf-8"),
