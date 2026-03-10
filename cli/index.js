@@ -799,6 +799,51 @@ async function cmdStatus() {
   log("");
 }
 
+async function cmdToken(tokenValue) {
+  if (!tokenValue) {
+    const config = getConfig();
+    if (config.token) {
+      info(`Token is set: ${c.dim}${config.token.slice(0, 10)}...${config.token.slice(-4)}${c.reset}`);
+    } else {
+      warn("No token set. Generate one from the dashboard, then run:");
+      log(`  ${c.cyan}vpush token <your-token>${c.reset}`);
+    }
+    return;
+  }
+
+  const config = getConfig();
+
+  if (!config.server) {
+    error("No server set. Run: vpush server <url> first");
+    process.exit(1);
+  }
+
+  config.token = tokenValue;
+  saveConfig(config);
+
+  try {
+    const res = await request("GET", "/api/auth/me");
+    if (res.status === 200) {
+      config.username = res.data.username;
+      saveConfig(config);
+      log("");
+      success(`Authenticated as ${c.bold}${res.data.username}${c.reset}`);
+      log(`${c.dim}  Token saved to ~/.vpush/config.json${c.reset}`);
+      log(`${c.dim}  You're all set — no login needed.${c.reset}\n`);
+    } else {
+      config.token = null;
+      saveConfig(config);
+      error("Invalid token. Generate a new one from the dashboard.");
+      process.exit(1);
+    }
+  } catch (err) {
+    config.token = null;
+    saveConfig(config);
+    error(`Connection failed: ${err.message}`);
+    process.exit(1);
+  }
+}
+
 async function cmdServer(url) {
   const config = getConfig();
   if (url) {
@@ -823,7 +868,8 @@ ${c.bold}USAGE${c.reset}
   vpush <command> [options]
 
 ${c.bold}COMMANDS${c.reset}
-  ${c.cyan}login${c.reset}              Sign in (one-time — generates a persistent token)
+  ${c.cyan}token${c.reset} <token>       Set API token (from dashboard — no login needed)
+  ${c.cyan}login${c.reset}              Sign in interactively (generates token)
   ${c.cyan}logout${c.reset}             Sign out and remove token
   ${c.cyan}whoami${c.reset}             Show current user
   ${c.cyan}init${c.reset}               Initialize project in current directory
@@ -832,9 +878,9 @@ ${c.bold}COMMANDS${c.reset}
   ${c.cyan}status${c.reset}             Show connection and project status
   ${c.cyan}server${c.reset} <url>       Set or show server URL
 
-${c.bold}GETTING STARTED${c.reset}
+${c.bold}GETTING STARTED${c.reset} ${c.dim}(copy these from your dashboard)${c.reset}
   ${c.dim}1.${c.reset} vpush server https://your-app.replit.app
-  ${c.dim}2.${c.reset} vpush login
+  ${c.dim}2.${c.reset} vpush token <paste-token-from-dashboard>
   ${c.dim}3.${c.reset} cd your-project && vpush init
   ${c.dim}4.${c.reset} vpush push
 
@@ -861,6 +907,9 @@ async function main() {
 
   try {
     switch (command) {
+      case "token":
+        await cmdToken(args[1]);
+        break;
       case "login":
         await cmdLogin();
         break;

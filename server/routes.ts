@@ -179,7 +179,7 @@ export async function registerRoutes(
       if (!project) return res.status(404).json({ message: "Project not found" });
 
       const owner = await storage.getUser(project.userId);
-      const isOwner = req.isAuthenticated() && (req.user as any).id === project.userId;
+      const isOwner = !!req.user && (req.user as any).id === project.userId;
 
       if (project.visibility === "private" && !isOwner) {
         const pin = req.headers["x-auth-pin"] as string;
@@ -260,7 +260,7 @@ export async function registerRoutes(
       const project = await storage.getProjectByProjectId(req.params.projectId);
       if (!project) return res.status(404).json({ message: "Project not found" });
 
-      const isOwner = req.isAuthenticated() && (req.user as any).id === project.userId;
+      const isOwner = !!req.user && (req.user as any).id === project.userId;
       if (project.visibility === "private" && !isOwner) {
         const pin = req.headers["x-auth-pin"] as string;
         if (!pin || pin !== project.authPin) {
@@ -354,7 +354,7 @@ export async function registerRoutes(
       const project = await storage.getProjectByProjectId(file.projectId);
       if (!project) return res.status(404).json({ message: "Project not found" });
 
-      const isOwner = req.isAuthenticated() && (req.user as any).id === project.userId;
+      const isOwner = !!req.user && (req.user as any).id === project.userId;
       if (project.visibility === "private" && !isOwner) {
         const pin = req.headers["x-auth-pin"] as string;
         if (!pin || pin !== project.authPin) {
@@ -426,7 +426,7 @@ export async function registerRoutes(
       const project = await storage.getProjectByProjectId(file.projectId);
       if (!project) return res.status(404).json({ message: "Project not found" });
 
-      const isOwner = req.isAuthenticated() && (req.user as any).id === project.userId;
+      const isOwner = !!req.user && (req.user as any).id === project.userId;
       if (project.visibility === "private" && !isOwner) {
         const pin = req.headers["x-auth-pin"] as string;
         if (!pin || pin !== project.authPin) {
@@ -476,7 +476,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "File not found" });
       }
 
-      const isOwner = req.isAuthenticated() && (req.user as any).id === project.userId;
+      const isOwner = !!req.user && (req.user as any).id === project.userId;
       if (project.visibility === "private" && !isOwner) {
         const pin = req.headers["x-auth-pin"] as string;
         if (!pin || pin !== project.authPin) {
@@ -574,7 +574,7 @@ export async function registerRoutes(
   });
 
   const requireAdmin = (req: any, res: any, next: any) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
     const user = req.user as any;
     if (user.role !== "admin" && user.username !== "idledev") {
       return res.status(403).json({ message: "Admin access required" });
