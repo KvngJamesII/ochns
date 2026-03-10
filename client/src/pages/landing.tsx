@@ -31,32 +31,28 @@ function TerminalDemo() {
             <span className="text-[#58a6ff]">~</span>
             <span className="text-[#f0f6fc]">$</span>
             <span className="text-[#79c0ff]">vpush</span>
-            <span className="text-[#f0f6fc]">token vpush_abc123...</span>
+            <span className="text-[#f0f6fc]">samuel/my-api</span>
           </div>
-          <div className="text-[#3fb950] mt-1.5 ml-4">Token saved to ~/.vpush/config.json</div>
+          <div className="text-[#8b949e] mt-1.5 ml-4">Cloning samuel/my-api...</div>
+          <div className="text-[#f0f6fc] ml-4">Downloaded 12 files (2.4 MB)</div>
+          <div className="text-[#3fb950] ml-4 flex items-center gap-1.5">
+            <Check className="w-3.5 h-3.5" /> Cloned into ./my-api
+          </div>
 
           <div className="flex items-center gap-2 text-[#8b949e] mt-4">
-            <span className="text-[#58a6ff]">~</span>
-            <span className="text-[#f0f6fc]">$</span>
-            <span className="text-[#79c0ff]">vpush</span>
-            <span className="text-[#f0f6fc]">init</span>
-          </div>
-          <div className="text-[#3fb950] mt-1.5 ml-4">Linked to samuel/my-api</div>
-
-          <div className="flex items-center gap-2 text-[#8b949e] mt-4">
-            <span className="text-[#58a6ff]">~</span>
+            <span className="text-[#58a6ff]">~/my-api</span>
             <span className="text-[#f0f6fc]">$</span>
             <span className="text-[#79c0ff]">vpush</span>
             <span className="text-[#f0f6fc]">push</span>
           </div>
           <div className="text-[#8b949e] mt-1.5 ml-4">Scanning files...</div>
-          <div className="text-[#f0f6fc] ml-4">Uploading 12 files (2.4 MB)</div>
+          <div className="text-[#f0f6fc] ml-4">Uploading 3 changed files</div>
           <div className="text-[#3fb950] ml-4 flex items-center gap-1.5">
-            <Check className="w-3.5 h-3.5" /> Push complete in 1.2s
+            <Check className="w-3.5 h-3.5" /> Push complete in 0.8s
           </div>
 
           <div className="flex items-center gap-2 text-[#8b949e] mt-4">
-            <span className="text-[#58a6ff]">~</span>
+            <span className="text-[#58a6ff]">~/my-api</span>
             <span className="text-[#f0f6fc]">$</span>
             <span className="text-[#79c0ff]">vpush</span>
             <span className="text-[#f0f6fc]">pull</span>
@@ -68,7 +64,7 @@ function TerminalDemo() {
           </div>
 
           <div className="flex items-center gap-2 text-[#8b949e] mt-4">
-            <span className="text-[#58a6ff]">~</span>
+            <span className="text-[#58a6ff]">~/my-api</span>
             <span className="text-[#f0f6fc]">$</span>
             <span className="animate-pulse text-[#f0f6fc]">_</span>
           </div>
@@ -174,14 +170,14 @@ export default function Landing() {
             {[
               {
                 step: "01",
-                title: "Create a project & token",
-                desc: "Sign up and create a project on your VPush instance. Generate an API token from Settings to authenticate the CLI.",
-                code: "$ vpush token vpush_abc...",
+                title: "Create a project",
+                desc: "Sign up and create a project on VPush. That's it — no tokens or API keys needed.",
+                code: "$ vpush samuel/my-api",
               },
               {
                 step: "02",
                 title: "Push your files",
-                desc: "Install the CLI on your VPS. Run vpush init, then vpush push and your local files sync to the cloud instantly.",
+                desc: "Edit files on your server, then run vpush push. Your changes sync to VPush instantly.",
                 code: "$ vpush push",
               },
               {
@@ -295,14 +291,14 @@ export default function Landing() {
                   <span className="text-[#79c0ff]">vpush</span>
                   <span className="text-[#f0f6fc]"> status</span>
                 </div>
-                <div className="text-[#f0f6fc] mt-1 ml-2">2 modified, 1 new, 0 deleted</div>
+                <div className="text-[#f0f6fc] mt-1 ml-2">Connected to samuel/my-api</div>
                 <div className="mt-2">
                   <span className="text-[#f0f6fc]">$ </span>
                   <span className="text-[#79c0ff]">vpush</span>
-                  <span className="text-[#f0f6fc]"> sync</span>
+                  <span className="text-[#f0f6fc]"> push</span>
                 </div>
                 <div className="text-[#3fb950] mt-1 ml-2 flex items-center gap-1">
-                  <Check className="w-3 h-3" /> Synced. Local is up to date.
+                  <Check className="w-3 h-3" /> Push complete
                 </div>
               </div>
             </div>
@@ -315,22 +311,19 @@ export default function Landing() {
           <div className="max-w-xl mb-16">
             <p className="text-sm font-medium text-primary tracking-wider uppercase mb-3">CLI Reference</p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }} data-testid="text-cli-title">
-              Seven commands. That's the whole API.
+              Four commands. That's the whole API.
             </h2>
             <p className="text-muted-foreground mt-4 leading-relaxed">
-              Set your server, paste a token, and start deploying. No branches, no staging, no merge conflicts.
+              Clone a project, push, pull. No tokens, no branches, no merge conflicts.
             </p>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[
-              { cmd: "vpush server", desc: "Set your VPush server URL. Run once to point the CLI at your instance.", example: "$ vpush server https://vpush.tech\nServer set." },
-              { cmd: "vpush token", desc: "Set an API token for authentication. Generate one from your dashboard settings.", example: "$ vpush token vpush_abc123...\nToken saved." },
-              { cmd: "vpush init", desc: "Link the current directory to a VPush project. Creates a .vpush config file.", example: "$ vpush init\nLinked to my-project" },
-              { cmd: "vpush push", desc: "Upload all changed files from your local directory to the remote project.", example: "$ vpush push\nUploading 5 files... Done." },
-              { cmd: "vpush pull", desc: "Download all remote files to your local directory. Only pulls what changed.", example: "$ vpush pull\n3 files updated." },
-              { cmd: "vpush status", desc: "Shows what files differ between local and remote. Like git status but simpler.", example: "$ vpush status\n2 modified, 1 new" },
-              { cmd: "vpush login", desc: "Alternative auth: sign in interactively. Useful if you don't have a token handy.", example: "$ vpush login\nAuthenticated as samuel" },
+              { cmd: "vpush user/project", desc: "Clone a project to your server. Downloads all files into a new folder. Enter your PIN if it's private.", example: "$ vpush samuel/my-api\nCloned into ./my-api" },
+              { cmd: "vpush push", desc: "Upload all changed files from your local directory to VPush.", example: "$ vpush push\nUploading 5 files... Done." },
+              { cmd: "vpush pull", desc: "Download the latest files from VPush. Only pulls what changed.", example: "$ vpush pull\n3 files updated." },
+              { cmd: "vpush status", desc: "Shows which project you're connected to and the server URL.", example: "$ vpush status\nConnected to samuel/my-api" },
             ].map((item) => (
               <div key={item.cmd} className="rounded-xl border border-border bg-card p-5 hover:border-border transition-colors" data-testid={`cli-${item.cmd.replace(/\s/g, "-")}`}>
                 <code className="text-sm font-mono font-semibold text-primary">{item.cmd}</code>
