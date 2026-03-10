@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, requireAuth, hashPassword, verifyPassword } from "./auth";
+import { setupAuth, requireAuth, tokenAuth, hashPassword, verifyPassword } from "./auth";
 import { insertProjectSchema, insertUserSchema, insertContactSchema, insertAnnouncementSchema } from "@shared/schema";
 import passport from "passport";
 import multer from "multer";
@@ -17,6 +17,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   setupAuth(app);
+  app.use(tokenAuth);
 
   app.get("/cli/index.js", (req, res) => {
     const cliPath = path.join(process.cwd(), "cli", "index.js");
@@ -106,9 +107,49 @@ export async function registerRoutes(
   });
 
   app.get("/api/auth/me", (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    if (!req.user && !req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     const user = req.user as any;
     return res.json({ id: user.id, username: user.username, displayName: user.displayName, role: user.role });
+  });
+
+  app.post("/api/auth/token", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { name } = req.body;
+      const tokenName = (name || "CLI Token").trim().slice(0, 100);
+      const { randomBytes } = await import("crypto");
+      const rawToken = "vpush_" + randomBytes(32).toString("hex");
+      const apiToken = await storage.createApiToken(user.id, tokenName, rawToken);
+      return res.json({ id: apiToken.id, name: apiToken.name, token: rawToken, createdAt: apiToken.createdAt });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/auth/tokens", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const tokens = await storage.getApiTokensByUser(user.id);
+      return res.json(tokens.map(t => ({
+        id: t.id,
+        name: t.name,
+        tokenPreview: t.token.slice(0, 10) + "..." + t.token.slice(-4),
+        lastUsed: t.lastUsed,
+        createdAt: t.createdAt,
+      })));
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/auth/tokens/:id", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      await storage.deleteApiToken(req.params.id, user.id);
+      return res.json({ message: "Token deleted" });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
   });
 
   app.post("/api/projects", requireAuth, async (req, res) => {

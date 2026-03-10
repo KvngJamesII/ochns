@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { users, projects, files, fileVersions, announcements, contacts, notifications } from "@shared/schema";
-import type { User, InsertUser, Project, InsertProject, FileRecord, InsertFile, FileVersion, Announcement, InsertAnnouncement, Contact, InsertContact, Notification } from "@shared/schema";
+import { users, projects, files, fileVersions, announcements, contacts, notifications, apiTokens } from "@shared/schema";
+import type { User, InsertUser, Project, InsertProject, FileRecord, InsertFile, FileVersion, Announcement, InsertAnnouncement, Contact, InsertContact, Notification, ApiToken } from "@shared/schema";
 import { eq, and, desc, count, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { hashPassword } from "./auth";
@@ -46,6 +46,12 @@ export interface IStorage {
   markNotificationRead(id: string, userId: string): Promise<void>;
   markAllNotificationsRead(userId: string): Promise<void>;
   sendNotificationToAll(title: string, message: string, type?: string): Promise<void>;
+
+  createApiToken(userId: string, name: string, token: string): Promise<ApiToken>;
+  getApiTokensByUser(userId: string): Promise<ApiToken[]>;
+  getApiTokenByToken(token: string): Promise<ApiToken | undefined>;
+  deleteApiToken(id: string, userId: string): Promise<void>;
+  updateTokenLastUsed(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -258,6 +264,27 @@ export class DatabaseStorage implements IStorage {
     for (const u of allUsers) {
       await db.insert(notifications).values({ userId: u.id, title, message, type });
     }
+  }
+  async createApiToken(userId: string, name: string, token: string): Promise<ApiToken> {
+    const [created] = await db.insert(apiTokens).values({ userId, name, token }).returning();
+    return created;
+  }
+
+  async getApiTokensByUser(userId: string): Promise<ApiToken[]> {
+    return db.select().from(apiTokens).where(eq(apiTokens.userId, userId)).orderBy(desc(apiTokens.createdAt));
+  }
+
+  async getApiTokenByToken(token: string): Promise<ApiToken | undefined> {
+    const [found] = await db.select().from(apiTokens).where(eq(apiTokens.token, token));
+    return found;
+  }
+
+  async deleteApiToken(id: string, userId: string): Promise<void> {
+    await db.delete(apiTokens).where(and(eq(apiTokens.id, id), eq(apiTokens.userId, userId)));
+  }
+
+  async updateTokenLastUsed(id: string): Promise<void> {
+    await db.update(apiTokens).set({ lastUsed: new Date() }).where(eq(apiTokens.id, id));
   }
 }
 

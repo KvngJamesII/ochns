@@ -99,6 +99,15 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const apiTokens = pgTable("api_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull(),
+  token: text("token").notNull().unique(),
+  lastUsed: timestamp("last_used"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertAnnouncementSchema = createInsertSchema(announcements).pick({
   title: true,
   content: true,
@@ -123,3 +132,4 @@ export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type Contact = typeof contacts.$inferSelect;
 export type InsertContact = z.infer<typeof insertContactSchema>;
 export type Notification = typeof notifications.$inferSelect;
+export type ApiToken = typeof apiTokens.$inferSelect;

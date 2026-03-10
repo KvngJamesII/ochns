@@ -72,7 +72,29 @@ export function setupAuth(app: Express) {
   });
 }
 
+export async function tokenAuth(req: Request, res: any, next: any) {
+  if (req.isAuthenticated()) return next();
+
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    try {
+      const apiToken = await storage.getApiTokenByToken(token);
+      if (apiToken) {
+        const user = await storage.getUser(apiToken.userId);
+        if (user) {
+          (req as any).user = user;
+          storage.updateTokenLastUsed(apiToken.id).catch(() => {});
+          return next();
+        }
+      }
+    } catch {}
+  }
+  next();
+}
+
 export function requireAuth(req: Request, res: any, next: any) {
+  if (req.user) return next();
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Authentication required" });
   }

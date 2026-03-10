@@ -6,7 +6,7 @@ VPush is a web platform for pushing and pulling files between VPS servers and ho
 ## Architecture
 - **Frontend**: React + TypeScript, Vite, Tailwind CSS, shadcn/ui, framer-motion
 - **Backend**: Express.js, PostgreSQL with Drizzle ORM
-- **Auth**: Passport.js with local strategy, session-based
+- **Auth**: Passport.js with local strategy, session-based (web) + API token-based (CLI)
 - **Fonts**: Inter (sans), JetBrains Mono (mono), Space Grotesk (headings)
 - **Theme**: Dark/light mode toggle with localStorage persistence, class-based (.dark)
 
@@ -52,6 +52,7 @@ shared/
 - **announcements**: id, title, content, authorId, createdAt
 - **contacts**: id, name, email, subject, message, read, createdAt
 - **notifications**: id, userId, title, message, type (system/admin), read, createdAt
+- **api_tokens**: id, userId, name, token (unique), lastUsed, createdAt
 
 ## Key Features
 - User authentication (signup with email/username/password/confirm/terms, login)
@@ -77,7 +78,10 @@ shared/
 ## API Endpoints
 - GET /api/auth/check-username/:username
 - POST /api/auth/register (username, email, password), /api/auth/login, /api/auth/logout
-- GET /api/auth/me (includes role)
+- GET /api/auth/me (includes role, supports Bearer token auth)
+- POST /api/auth/token (generate API token, requires auth)
+- GET /api/auth/tokens (list user's tokens with preview)
+- DELETE /api/auth/tokens/:id (revoke token)
 - GET/POST /api/projects
 - GET/PATCH/DELETE /api/projects/:projectId
 - POST /api/projects/:projectId/generate-pin

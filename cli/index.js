@@ -30,7 +30,7 @@ const DEFAULT_IGNORE = [
   "build",
 ];
 
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 
 function getConfig() {
   try {
@@ -107,13 +107,12 @@ function promptPassword(question) {
   });
 }
 
-function request(method, urlPath, body, cookie) {
+function request(method, urlPath, body) {
   const config = getConfig();
   const serverUrl = config.server || "http://localhost:5000";
   const url = new URL(urlPath, serverUrl);
   const isHttps = url.protocol === "https:";
   const mod = isHttps ? https : http;
-  const sessionCookie = cookie || config.session;
 
   return new Promise((resolve, reject) => {
     const options = {
@@ -127,8 +126,58 @@ function request(method, urlPath, body, cookie) {
       },
     };
 
-    if (sessionCookie) {
-      options.headers["Cookie"] = sessionCookie;
+    if (config.token) {
+      options.headers["Authorization"] = `Bearer ${config.token}`;
+    }
+
+    const req = mod.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        let parsed;
+        try {
+          parsed = JSON.parse(data);
+        } catch {
+          parsed = data;
+        }
+        resolve({
+          status: res.statusCode,
+          data: parsed,
+          headers: res.headers,
+        });
+      });
+    });
+
+    req.on("error", (err) => reject(err));
+
+    if (body) {
+      req.write(JSON.stringify(body));
+    }
+    req.end();
+  });
+}
+
+function requestWithCookie(method, urlPath, body, cookie) {
+  const config = getConfig();
+  const serverUrl = config.server || "http://localhost:5000";
+  const url = new URL(urlPath, serverUrl);
+  const isHttps = url.protocol === "https:";
+  const mod = isHttps ? https : http;
+
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: url.hostname,
+      port: url.port || (isHttps ? 443 : 80),
+      path: url.pathname + url.search,
+      method: method,
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": `vpush-cli/${VERSION}`,
+      },
+    };
+
+    if (cookie) {
+      options.headers["Cookie"] = cookie;
     }
 
     const req = mod.request(options, (res) => {
@@ -160,13 +209,12 @@ function request(method, urlPath, body, cookie) {
   });
 }
 
-function uploadFile(urlPath, filePath, remotePath, cookie) {
+function uploadFile(urlPath, filePath, remotePath) {
   const config = getConfig();
   const serverUrl = config.server || "http://localhost:5000";
   const url = new URL(urlPath, serverUrl);
   const isHttps = url.protocol === "https:";
   const mod = isHttps ? https : http;
-  const sessionCookie = cookie || config.session;
 
   const boundary = "----VPushBoundary" + Date.now();
   const fileContent = fs.readFileSync(filePath);
@@ -205,8 +253,8 @@ function uploadFile(urlPath, filePath, remotePath, cookie) {
       },
     };
 
-    if (sessionCookie) {
-      options.headers["Cookie"] = sessionCookie;
+    if (config.token) {
+      options.headers["Authorization"] = `Bearer ${config.token}`;
     }
 
     const req = mod.request(options, (res) => {
@@ -343,6 +391,19 @@ async function cmdLogin() {
     info(`Server: ${config.server}`);
   }
 
+  if (config.token) {
+    try {
+      const res = await request("GET", "/api/auth/me");
+      if (res.status === 200) {
+        success(`Already signed in as ${c.bold}${res.data.username}${c.reset}`);
+        log(`${c.dim}  Token is valid. Use 'vpush logout' to sign out.${c.reset}\n`);
+        return;
+      }
+    } catch {}
+    config.token = null;
+    saveConfig(config);
+  }
+
   const username = await prompt(`${c.cyan}Username${c.reset}: `);
   const password = await promptPassword(`${c.cyan}Password${c.reset}: `);
 
@@ -352,31 +413,40 @@ async function cmdLogin() {
   }
 
   try {
-    const res = await request("POST", "/api/auth/login", {
+    const loginRes = await requestWithCookie("POST", "/api/auth/login", {
       username,
       password,
     });
 
-    if (res.status === 200) {
-      const sessionCookie = res.cookies
-        ? res.cookies
-            .map((c) => c.split(";")[0])
-            .join("; ")
-        : null;
-
-      config.session = sessionCookie;
-      config.username = res.data.username;
-      saveConfig(config);
-
-      log("");
-      success(
-        `Signed in as ${c.bold}${res.data.username}${c.reset}`
-      );
-      log(`${c.dim}  Session saved to ~/.vpush/config.json${c.reset}\n`);
-    } else {
-      error(res.data.message || "Login failed");
+    if (loginRes.status !== 200) {
+      error(loginRes.data.message || "Login failed");
       process.exit(1);
     }
+
+    const sessionCookie = loginRes.cookies
+      ? loginRes.cookies.map((c) => c.split(";")[0]).join("; ")
+      : null;
+
+    const tokenRes = await requestWithCookie("POST", "/api/auth/token", {
+      name: `CLI (${require("os").hostname()})`,
+    }, sessionCookie);
+
+    if (tokenRes.status !== 200) {
+      error("Failed to generate API token");
+      process.exit(1);
+    }
+
+    config.token = tokenRes.data.token;
+    config.username = loginRes.data.username;
+    delete config.session;
+    saveConfig(config);
+
+    log("");
+    success(
+      `Signed in as ${c.bold}${loginRes.data.username}${c.reset}`
+    );
+    log(`${c.dim}  Token saved to ~/.vpush/config.json${c.reset}`);
+    log(`${c.dim}  You won't need to log in again on this machine.${c.reset}\n`);
   } catch (err) {
     error(`Connection failed: ${err.message}`);
     error(`Make sure the server is running at ${config.server}`);
@@ -386,20 +456,16 @@ async function cmdLogin() {
 
 async function cmdLogout() {
   const config = getConfig();
-  if (config.session) {
-    try {
-      await request("POST", "/api/auth/logout");
-    } catch {}
-  }
+  config.token = null;
   config.session = null;
   config.username = null;
   saveConfig(config);
-  success("Signed out");
+  success("Signed out. Token removed.");
 }
 
 async function cmdWhoami() {
   const config = getConfig();
-  if (!config.session) {
+  if (!config.token) {
     error("Not signed in. Run: vpush login");
     process.exit(1);
   }
@@ -408,12 +474,12 @@ async function cmdWhoami() {
     const res = await request("GET", "/api/auth/me");
     if (res.status === 200) {
       log(
-        `\n${c.bold}${res.data.username}${c.reset} ${c.dim}(${res.data.email})${c.reset}`
+        `\n${c.bold}${res.data.username}${c.reset} ${c.dim}(${res.data.role})${c.reset}`
       );
       log(`${c.dim}Server: ${config.server}${c.reset}\n`);
     } else {
-      error("Session expired. Run: vpush login");
-      config.session = null;
+      error("Token expired or invalid. Run: vpush login");
+      config.token = null;
       saveConfig(config);
       process.exit(1);
     }
@@ -425,7 +491,7 @@ async function cmdWhoami() {
 
 async function ensureAuth() {
   const config = getConfig();
-  if (!config.session) {
+  if (!config.token) {
     error("Not signed in. Run: vpush login");
     process.exit(1);
   }
@@ -433,8 +499,8 @@ async function ensureAuth() {
   try {
     const res = await request("GET", "/api/auth/me");
     if (res.status !== 200) {
-      error("Session expired. Run: vpush login");
-      config.session = null;
+      error("Token expired or invalid. Run: vpush login");
+      config.token = null;
       saveConfig(config);
       process.exit(1);
     }
@@ -711,7 +777,7 @@ async function cmdStatus() {
   log(`  ${c.dim}Version:${c.reset}  ${VERSION}`);
   log(`  ${c.dim}Server:${c.reset}   ${config.server || c.yellow + "not set" + c.reset}`);
   log(
-    `  ${c.dim}Auth:${c.reset}     ${config.session ? c.green + "signed in" + c.reset : c.yellow + "not signed in" + c.reset}`
+    `  ${c.dim}Auth:${c.reset}     ${config.token ? c.green + "authenticated (token)" + c.reset : c.yellow + "not signed in" + c.reset}`
   );
   if (config.username) {
     log(`  ${c.dim}User:${c.reset}     ${config.username}`);
@@ -720,14 +786,14 @@ async function cmdStatus() {
     `  ${c.dim}Project:${c.reset}  ${projectConfig ? projectConfig.projectId : c.yellow + "not initialized" + c.reset}`
   );
 
-  if (config.session) {
+  if (config.token) {
     try {
       const res = await request("GET", "/api/auth/me");
       log(
-        `  ${c.dim}Session:${c.reset}  ${res.status === 200 ? c.green + "valid" + c.reset : c.red + "expired" + c.reset}`
+        `  ${c.dim}Token:${c.reset}    ${res.status === 200 ? c.green + "valid" + c.reset : c.red + "expired" + c.reset}`
       );
     } catch {
-      log(`  ${c.dim}Session:${c.reset}  ${c.red}unable to reach server${c.reset}`);
+      log(`  ${c.dim}Token:${c.reset}    ${c.red}unable to reach server${c.reset}`);
     }
   }
   log("");
@@ -751,14 +817,14 @@ async function cmdServer(url) {
 function showHelp() {
   log(`
 ${c.bold}VPush CLI${c.reset} v${VERSION}
-${c.dim}Deploy files to your VPS servers${c.reset}
+${c.dim}Deploy files to your servers${c.reset}
 
 ${c.bold}USAGE${c.reset}
   vpush <command> [options]
 
 ${c.bold}COMMANDS${c.reset}
-  ${c.cyan}login${c.reset}              Sign in to your VPush account
-  ${c.cyan}logout${c.reset}             Sign out
+  ${c.cyan}login${c.reset}              Sign in (one-time — generates a persistent token)
+  ${c.cyan}logout${c.reset}             Sign out and remove token
   ${c.cyan}whoami${c.reset}             Show current user
   ${c.cyan}init${c.reset}               Initialize project in current directory
   ${c.cyan}push${c.reset}               Push local files to server
@@ -775,7 +841,7 @@ ${c.bold}GETTING STARTED${c.reset}
 ${c.bold}FILES${c.reset}
   ${c.dim}.vpush.json${c.reset}     Project config (created by vpush init)
   ${c.dim}.vpushignore${c.reset}    Ignore patterns (like .gitignore)
-  ${c.dim}~/.vpush/${c.reset}       Global config and session data
+  ${c.dim}~/.vpush/${c.reset}       Global config and token data
 `);
 }
 
@@ -821,11 +887,11 @@ async function main() {
         break;
       default:
         error(`Unknown command: ${command}`);
-        log(`${c.dim}Run ${c.cyan}vpush help${c.reset}${c.dim} for usage${c.reset}`);
+        log(`${c.dim}Run 'vpush help' for usage${c.reset}`);
         process.exit(1);
     }
   } catch (err) {
-    error(err.message);
+    error(`Unexpected error: ${err.message}`);
     process.exit(1);
   }
 }
