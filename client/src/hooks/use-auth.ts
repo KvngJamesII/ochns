@@ -7,6 +7,7 @@ interface AuthUser {
   username: string;
   displayName: string | null;
   role: string;
+  totpEnabled: boolean;
 }
 
 export function useAuth() {

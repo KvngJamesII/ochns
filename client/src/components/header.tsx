@@ -17,7 +17,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Terminal, LogOut, LayoutDashboard, ChevronDown, Sun, Moon, Shield, Bell, Check, Megaphone, Info, BookOpen, Settings } from "lucide-react";
+import { Terminal, LogOut, LayoutDashboard, ChevronDown, Sun, Moon, Shield, Bell, Check, Megaphone, Info, BookOpen, Settings, ShieldAlert } from "lucide-react";
 
 interface NotificationItem {
   id: string;
@@ -146,7 +146,10 @@ export function Header() {
   const isLanding = location === "/";
   const isAdmin = user?.role === "admin";
 
+  const showSecurityBanner = isAuthenticated && user && !user.totpEnabled;
+
   return (
+    <>
     <header
       data-testid="header"
       className={`fixed top-0 left-0 right-0 z-50 border-b transition-colors ${
@@ -267,5 +270,27 @@ export function Header() {
         </div>
       </div>
     </header>
+
+      {showSecurityBanner && (
+        <>
+          <div className="fixed top-16 left-0 right-0 z-40 bg-amber-500/10 border-b border-amber-500/20 backdrop-blur-sm">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <ShieldAlert className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                <p className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 truncate">
+                  Please enable authenticator for your account security
+                </p>
+              </div>
+              <Link href="/settings">
+                <Button size="sm" variant="outline" className="text-xs h-7 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 flex-shrink-0">
+                  Enable
+                </Button>
+              </Link>
+            </div>
+          </div>
+          <div className="h-10" />
+        </>
+      )}
+    </>
   );
 }

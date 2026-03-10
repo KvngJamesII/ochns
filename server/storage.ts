@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { db, hasDatabase } from "./db";
 import { users, projects, files, fileVersions, announcements, contacts, notifications, apiTokens } from "@shared/schema";
 import type { User, InsertUser, Project, InsertProject, FileRecord, InsertFile, FileVersion, Announcement, InsertAnnouncement, Contact, InsertContact, Notification, ApiToken } from "@shared/schema";
 import { eq, and, desc, count, sql } from "drizzle-orm";
@@ -52,6 +52,11 @@ export interface IStorage {
   getApiTokenByToken(token: string): Promise<ApiToken | undefined>;
   deleteApiToken(id: string, userId: string): Promise<void>;
   updateTokenLastUsed(id: string): Promise<void>;
+
+  setTotpSecret(userId: string, secret: string): Promise<void>;
+  enableTotp(userId: string): Promise<void>;
+  disableTotp(userId: string): Promise<void>;
+  updatePassword(userId: string, hashedPassword: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -286,6 +291,157 @@ export class DatabaseStorage implements IStorage {
   async updateTokenLastUsed(id: string): Promise<void> {
     await db.update(apiTokens).set({ lastUsed: new Date() }).where(eq(apiTokens.id, id));
   }
+
+  async setTotpSecret(userId: string, secret: string): Promise<void> {
+    await db.update(users).set({ totpSecret: secret }).where(eq(users.id, userId));
+  }
+
+  async enableTotp(userId: string): Promise<void> {
+    await db.update(users).set({ totpEnabled: true }).where(eq(users.id, userId));
+  }
+
+  async disableTotp(userId: string): Promise<void> {
+    await db.update(users).set({ totpEnabled: false, totpSecret: null }).where(eq(users.id, userId));
+  }
+
+  async updatePassword(userId: string, hashedPassword: string): Promise<void> {
+    await db.update(users).set({ password: hashedPassword }).where(eq(users.id, userId));
+  }
 }
 
-export const storage = new DatabaseStorage();
+class MemoryStorage implements IStorage {
+  private users: User[] = [];
+  private projects: Project[] = [];
+  private files: FileRecord[] = [];
+  private fileVersions: FileVersion[] = [];
+  private announcements: Announcement[] = [];
+  private contacts: Contact[] = [];
+  private notifications: Notification[] = [];
+  private apiTokens: ApiToken[] = [];
+
+  private genId(): string { return nanoid(21); }
+
+  async getUser(id: string) { return this.users.find(u => u.id === id); }
+  async getUserByUsername(username: string) { return this.users.find(u => u.username === username); }
+  async createUser(data: InsertUser): Promise<User> {
+    const user: User = {
+      id: this.genId(), username: data.username, email: data.email,
+      password: hashPassword(data.password), displayName: data.displayName ?? null,
+      role: "user", totpSecret: null, totpEnabled: false, createdAt: new Date(),
+    };
+    this.users.push(user);
+    return user;
+  }
+  async getAllUsers() { return [...this.users].reverse(); }
+
+  async createProject(userId: string, project: InsertProject): Promise<Project> {
+    const p: Project = {
+      id: this.genId(), projectId: `proj${nanoid(16)}`, name: project.name,
+      description: project.description ?? null, userId, visibility: project.visibility ?? "public",
+      authPin: null, createdAt: new Date(), updatedAt: new Date(),
+    };
+    this.projects.push(p);
+    return p;
+  }
+  async getProjectsByUser(userId: string) { return this.projects.filter(p => p.userId === userId).reverse(); }
+  async getProjectByProjectId(projectId: string) { return this.projects.find(p => p.projectId === projectId); }
+  async updateProject(id: string, updates: Partial<Project>) {
+    const idx = this.projects.findIndex(p => p.id === id);
+    if (idx === -1) return undefined;
+    this.projects[idx] = { ...this.projects[idx], ...updates, updatedAt: new Date() };
+    return this.projects[idx];
+  }
+  async deleteProject(id: string) { this.projects = this.projects.filter(p => p.id !== id); }
+
+  async getFilesByProject(projectId: string, parentPath: string) {
+    return this.files.filter(f => f.projectId === projectId && f.parentPath === parentPath)
+      .sort((a, b) => (b.isDirectory ? 1 : 0) - (a.isDirectory ? 1 : 0) || a.name.localeCompare(b.name));
+  }
+  async getFileById(id: string) { return this.files.find(f => f.id === id); }
+  async getFileByPath(projectId: string, path: string) { return this.files.find(f => f.projectId === projectId && f.path === path); }
+  async createFile(projectId: string, file: InsertFile): Promise<FileRecord> {
+    const f: FileRecord = {
+      id: this.genId(), projectId, name: file.name, path: file.path,
+      isDirectory: file.isDirectory ?? false, content: file.content ?? null,
+      size: file.size ?? 0, mimeType: file.mimeType ?? null,
+      parentPath: file.parentPath ?? "/", createdAt: new Date(), updatedAt: new Date(),
+    };
+    this.files.push(f);
+    return f;
+  }
+  async updateFile(id: string, updates: Partial<FileRecord>) {
+    const idx = this.files.findIndex(f => f.id === id);
+    if (idx === -1) return undefined;
+    this.files[idx] = { ...this.files[idx], ...updates, updatedAt: new Date() };
+    return this.files[idx];
+  }
+  async deleteFile(id: string) { this.files = this.files.filter(f => f.id !== id); }
+  async deleteFilesByPath(projectId: string, pathPrefix: string) {
+    const dirPrefix = pathPrefix.endsWith("/") ? pathPrefix : pathPrefix + "/";
+    this.files = this.files.filter(f => !(f.projectId === projectId && (f.path === pathPrefix || f.path.startsWith(dirPrefix))));
+  }
+  async getAllFilesByProject(projectId: string) {
+    return this.files.filter(f => f.projectId === projectId)
+      .sort((a, b) => (b.isDirectory ? 1 : 0) - (a.isDirectory ? 1 : 0) || a.name.localeCompare(b.name));
+  }
+
+  async createFileVersion(fileId: string, content: string | null, size: number): Promise<FileVersion> {
+    const versions = await this.getFileVersions(fileId);
+    const fv: FileVersion = { id: this.genId(), fileId, content, size, version: versions.length + 1, createdAt: new Date() };
+    this.fileVersions.push(fv);
+    return fv;
+  }
+  async getFileVersions(fileId: string) { return this.fileVersions.filter(v => v.fileId === fileId).sort((a, b) => b.version - a.version); }
+
+  async getAdminStats() {
+    const unread = this.contacts.filter(c => !c.read).length;
+    return { users: this.users.length, projects: this.projects.length, files: this.files.length, contacts: this.contacts.length, unreadContacts: unread };
+  }
+
+  async getAllContacts() { return [...this.contacts].reverse(); }
+  async createContact(data: InsertContact): Promise<Contact> {
+    const c: Contact = { id: this.genId(), name: data.name, email: data.email, subject: data.subject ?? null, message: data.message, read: false, createdAt: new Date() };
+    this.contacts.push(c);
+    return c;
+  }
+  async markContactRead(id: string) { const c = this.contacts.find(x => x.id === id); if (c) c.read = true; }
+  async deleteContact(id: string) { this.contacts = this.contacts.filter(c => c.id !== id); }
+
+  async getAllAnnouncements() { return [...this.announcements].reverse(); }
+  async createAnnouncement(authorId: string, data: InsertAnnouncement): Promise<Announcement> {
+    const a: Announcement = { id: this.genId(), title: data.title, content: data.content, authorId, createdAt: new Date() };
+    this.announcements.push(a);
+    return a;
+  }
+  async deleteAnnouncement(id: string) { this.announcements = this.announcements.filter(a => a.id !== id); }
+
+  async getNotificationsByUser(userId: string) { return this.notifications.filter(n => n.userId === userId).reverse(); }
+  async getUnreadNotificationCount(userId: string) { return this.notifications.filter(n => n.userId === userId && !n.read).length; }
+  async createNotification(userId: string, title: string, message: string, type = "system"): Promise<Notification> {
+    const n: Notification = { id: this.genId(), userId, title, message, type, read: false, createdAt: new Date() };
+    this.notifications.push(n);
+    return n;
+  }
+  async markNotificationRead(id: string, userId: string) { const n = this.notifications.find(x => x.id === id && x.userId === userId); if (n) n.read = true; }
+  async markAllNotificationsRead(userId: string) { this.notifications.filter(n => n.userId === userId).forEach(n => n.read = true); }
+  async sendNotificationToAll(title: string, message: string, type = "admin") {
+    for (const u of this.users) { this.notifications.push({ id: this.genId(), userId: u.id, title, message, type, read: false, createdAt: new Date() }); }
+  }
+
+  async createApiToken(userId: string, name: string, token: string): Promise<ApiToken> {
+    const t: ApiToken = { id: this.genId(), userId, name, token, lastUsed: null, createdAt: new Date() };
+    this.apiTokens.push(t);
+    return t;
+  }
+  async getApiTokensByUser(userId: string) { return this.apiTokens.filter(t => t.userId === userId).reverse(); }
+  async getApiTokenByToken(token: string) { return this.apiTokens.find(t => t.token === token); }
+  async deleteApiToken(id: string, userId: string) { this.apiTokens = this.apiTokens.filter(t => !(t.id === id && t.userId === userId)); }
+  async updateTokenLastUsed(id: string) { const t = this.apiTokens.find(x => x.id === id); if (t) t.lastUsed = new Date(); }
+
+  async setTotpSecret(userId: string, secret: string) { const u = this.users.find(x => x.id === userId); if (u) u.totpSecret = secret; }
+  async enableTotp(userId: string) { const u = this.users.find(x => x.id === userId); if (u) u.totpEnabled = true; }
+  async disableTotp(userId: string) { const u = this.users.find(x => x.id === userId); if (u) { u.totpEnabled = false; u.totpSecret = null; } }
+  async updatePassword(userId: string, hashedPassword: string) { const u = this.users.find(x => x.id === userId); if (u) u.password = hashedPassword; }
+}
+
+export const storage: IStorage = hasDatabase ? new DatabaseStorage() : new MemoryStorage();

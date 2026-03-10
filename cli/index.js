@@ -14,6 +14,8 @@ const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 const PROJECT_FILE = ".vpush.json";
 const IGNORE_FILE = ".vpushignore";
 
+const DEFAULT_SERVER = "https://vpush.tech";
+
 const DEFAULT_IGNORE = [
   "node_modules",
   ".git",
@@ -30,7 +32,9 @@ const DEFAULT_IGNORE = [
   "build",
 ];
 
-const VERSION = "1.1.0";
+const VERSION = "2.0.0";
+
+// ── Config helpers ──────────────────────────────────────────
 
 function getConfig() {
   try {
@@ -62,6 +66,13 @@ function saveProjectConfig(config) {
   fs.writeFileSync(path.resolve(PROJECT_FILE), JSON.stringify(config, null, 2));
 }
 
+function getServerUrl() {
+  const config = getConfig();
+  return config.server || DEFAULT_SERVER;
+}
+
+// ── Prompts ─────────────────────────────────────────────────
+
 function prompt(question) {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -75,31 +86,31 @@ function prompt(question) {
   });
 }
 
-function promptPassword(question) {
+function promptHidden(question) {
   return new Promise((resolve) => {
     process.stdout.write(question);
     const stdin = process.stdin;
     const wasRaw = stdin.isRaw;
     if (stdin.setRawMode) stdin.setRawMode(true);
     stdin.resume();
-    let password = "";
+    let value = "";
     const onData = (ch) => {
-      const c = ch.toString("utf8");
-      if (c === "\n" || c === "\r" || c === "\u0004") {
+      const s = ch.toString("utf8");
+      if (s === "\n" || s === "\r" || s === "\u0004") {
         if (stdin.setRawMode) stdin.setRawMode(wasRaw || false);
         stdin.pause();
         stdin.removeListener("data", onData);
         process.stdout.write("\n");
-        resolve(password);
-      } else if (c === "\u0003") {
+        resolve(value);
+      } else if (s === "\u0003") {
         process.exit(0);
-      } else if (c === "\u007F" || c === "\b") {
-        if (password.length > 0) {
-          password = password.slice(0, -1);
+      } else if (s === "\u007F" || s === "\b") {
+        if (value.length > 0) {
+          value = value.slice(0, -1);
           process.stdout.write("\b \b");
         }
       } else {
-        password += c;
+        value += s;
         process.stdout.write("*");
       }
     };
@@ -107,9 +118,10 @@ function promptPassword(question) {
   });
 }
 
-function request(method, urlPath, body) {
-  const config = getConfig();
-  const serverUrl = config.server || "http://localhost:5000";
+// ── HTTP helpers ────────────────────────────────────────────
+
+function request(method, urlPath, body, pin) {
+  const serverUrl = getServerUrl();
   const url = new URL(urlPath, serverUrl);
   const isHttps = url.protocol === "https:";
   const mod = isHttps ? https : http;
@@ -126,6 +138,11 @@ function request(method, urlPath, body) {
       },
     };
 
+    if (pin) {
+      options.headers["X-Auth-Pin"] = pin;
+    }
+
+    const config = getConfig();
     if (config.token) {
       options.headers["Authorization"] = `Bearer ${config.token}`;
     }
@@ -140,78 +157,18 @@ function request(method, urlPath, body) {
         } catch {
           parsed = data;
         }
-        resolve({
-          status: res.statusCode,
-          data: parsed,
-          headers: res.headers,
-        });
+        resolve({ status: res.statusCode, data: parsed });
       });
     });
 
     req.on("error", (err) => reject(err));
-
-    if (body) {
-      req.write(JSON.stringify(body));
-    }
+    if (body) req.write(JSON.stringify(body));
     req.end();
   });
 }
 
-function requestWithCookie(method, urlPath, body, cookie) {
-  const config = getConfig();
-  const serverUrl = config.server || "http://localhost:5000";
-  const url = new URL(urlPath, serverUrl);
-  const isHttps = url.protocol === "https:";
-  const mod = isHttps ? https : http;
-
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: url.hostname,
-      port: url.port || (isHttps ? 443 : 80),
-      path: url.pathname + url.search,
-      method: method,
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": `vpush-cli/${VERSION}`,
-      },
-    };
-
-    if (cookie) {
-      options.headers["Cookie"] = cookie;
-    }
-
-    const req = mod.request(options, (res) => {
-      let data = "";
-      res.on("data", (chunk) => (data += chunk));
-      res.on("end", () => {
-        let parsed;
-        try {
-          parsed = JSON.parse(data);
-        } catch {
-          parsed = data;
-        }
-        const setCookie = res.headers["set-cookie"];
-        resolve({
-          status: res.statusCode,
-          data: parsed,
-          cookies: setCookie,
-          headers: res.headers,
-        });
-      });
-    });
-
-    req.on("error", (err) => reject(err));
-
-    if (body) {
-      req.write(JSON.stringify(body));
-    }
-    req.end();
-  });
-}
-
-function uploadFile(urlPath, filePath, remotePath) {
-  const config = getConfig();
-  const serverUrl = config.server || "http://localhost:5000";
+function uploadFile(urlPath, filePath, remotePath, pin) {
+  const serverUrl = getServerUrl();
   const url = new URL(urlPath, serverUrl);
   const isHttps = url.protocol === "https:";
   const mod = isHttps ? https : http;
@@ -220,9 +177,9 @@ function uploadFile(urlPath, filePath, remotePath) {
   const fileContent = fs.readFileSync(filePath);
   const fileName = path.basename(filePath);
 
-  const pathField =
+  const parentPathField =
     `--${boundary}\r\n` +
-    `Content-Disposition: form-data; name="path"\r\n\r\n` +
+    `Content-Disposition: form-data; name="parentPath"\r\n\r\n` +
     `${remotePath}\r\n`;
 
   const fileHeader =
@@ -233,7 +190,7 @@ function uploadFile(urlPath, filePath, remotePath) {
   const footer = `\r\n--${boundary}--\r\n`;
 
   const bodyParts = [
-    Buffer.from(pathField, "utf-8"),
+    Buffer.from(parentPathField, "utf-8"),
     Buffer.from(fileHeader, "utf-8"),
     fileContent,
     Buffer.from(footer, "utf-8"),
@@ -253,6 +210,11 @@ function uploadFile(urlPath, filePath, remotePath) {
       },
     };
 
+    if (pin) {
+      options.headers["X-Auth-Pin"] = pin;
+    }
+
+    const config = getConfig();
     if (config.token) {
       options.headers["Authorization"] = `Bearer ${config.token}`;
     }
@@ -276,6 +238,8 @@ function uploadFile(urlPath, filePath, remotePath) {
     req.end();
   });
 }
+
+// ── File helpers ────────────────────────────────────────────
 
 function getIgnorePatterns() {
   let patterns = [...DEFAULT_IGNORE];
@@ -315,7 +279,6 @@ function getAllFiles(dir, baseDir, patterns) {
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     const relativePath = path.relative(baseDir, fullPath).replace(/\\/g, "/");
-
     if (shouldIgnore(relativePath, patterns)) continue;
 
     if (entry.isDirectory()) {
@@ -337,6 +300,8 @@ function formatSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+// ── Colors / logging ────────────────────────────────────────
+
 const c = {
   reset: "\x1b[0m",
   bold: "\x1b[1m",
@@ -350,274 +315,169 @@ const c = {
   gray: "\x1b[90m",
 };
 
-function log(msg) {
-  console.log(msg);
+function log(msg) { console.log(msg); }
+function success(msg) { console.log(`${c.green}✓${c.reset} ${msg}`); }
+function error(msg) { console.error(`${c.red}✗${c.reset} ${msg}`); }
+function info(msg) { console.log(`${c.blue}→${c.reset} ${msg}`); }
+function warn(msg) { console.log(`${c.yellow}!${c.reset} ${msg}`); }
+
+// ── Resolve helper ──────────────────────────────────────────
+
+/**
+ * Parse a project reference — accepts:
+ *   username/project
+ *   vpush.tech/username/project
+ *   https://vpush.tech/username/project
+ */
+function parseProjectRef(input) {
+  let cleaned = input.replace(/^\//, "");
+  // Strip protocol
+  cleaned = cleaned.replace(/^https?:\/\//, "");
+  // Strip known domain prefix (any host)
+  const slashParts = cleaned.split("/").filter(Boolean);
+  // If 3+ parts, first is domain — drop it
+  if (slashParts.length >= 3) {
+    return { owner: slashParts[1], name: slashParts[2] };
+  }
+  if (slashParts.length === 2) {
+    // Could be "domain/project" (invalid) or "owner/project"
+    // If first part has a dot, it's a domain — invalid
+    if (slashParts[0].includes(".")) return null;
+    return { owner: slashParts[0], name: slashParts[1] };
+  }
+  return null;
 }
 
-function success(msg) {
-  console.log(`${c.green}✓${c.reset} ${msg}`);
-}
-
-function error(msg) {
-  console.error(`${c.red}✗${c.reset} ${msg}`);
-}
-
-function info(msg) {
-  console.log(`${c.blue}→${c.reset} ${msg}`);
-}
-
-function warn(msg) {
-  console.log(`${c.yellow}!${c.reset} ${msg}`);
-}
-
-async function cmdLogin() {
-  log(
-    `\n${c.bold}VPush${c.reset} ${c.dim}— Sign in to your account${c.reset}\n`
+async function resolveProject(owner, name, pin) {
+  const res = await request(
+    "GET",
+    `/api/resolve/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`
   );
-
-  const config = getConfig();
-  if (!config.server) {
-    const server = await prompt(
-      `${c.cyan}Server URL${c.reset} ${c.dim}(e.g. https://vpush.tech)${c.reset}: `
-    );
-    if (!server) {
-      error("Server URL is required");
-      process.exit(1);
-    }
-    config.server = server.replace(/\/$/, "");
-    saveConfig(config);
-    success(`Server set to ${config.server}`);
-  } else {
-    info(`Server: ${config.server}`);
-  }
-
-  if (config.token) {
-    try {
-      const res = await request("GET", "/api/auth/me");
-      if (res.status === 200) {
-        success(`Already signed in as ${c.bold}${res.data.username}${c.reset}`);
-        log(`${c.dim}  Token is valid. Use 'vpush logout' to sign out.${c.reset}\n`);
-        return;
-      }
-    } catch {}
-    config.token = null;
-    saveConfig(config);
-  }
-
-  const username = await prompt(`${c.cyan}Username${c.reset}: `);
-  const password = await promptPassword(`${c.cyan}Password${c.reset}: `);
-
-  if (!username || !password) {
-    error("Username and password are required");
+  if (res.status === 404) {
+    error(res.data.message || `Project ${owner}/${name} not found`);
     process.exit(1);
   }
-
-  try {
-    const loginRes = await requestWithCookie("POST", "/api/auth/login", {
-      username,
-      password,
-    });
-
-    if (loginRes.status !== 200) {
-      error(loginRes.data.message || "Login failed");
-      process.exit(1);
-    }
-
-    const sessionCookie = loginRes.cookies
-      ? loginRes.cookies.map((c) => c.split(";")[0]).join("; ")
-      : null;
-
-    const tokenRes = await requestWithCookie("POST", "/api/auth/token", {
-      name: `CLI (${require("os").hostname()})`,
-    }, sessionCookie);
-
-    if (tokenRes.status !== 200) {
-      error("Failed to generate API token");
-      process.exit(1);
-    }
-
-    config.token = tokenRes.data.token;
-    config.username = loginRes.data.username;
-    delete config.session;
-    saveConfig(config);
-
-    log("");
-    success(
-      `Signed in as ${c.bold}${loginRes.data.username}${c.reset}`
-    );
-    log(`${c.dim}  Token saved to ~/.vpush/config.json${c.reset}`);
-    log(`${c.dim}  You won't need to log in again on this machine.${c.reset}\n`);
-  } catch (err) {
-    error(`Connection failed: ${err.message}`);
-    error(`Make sure the server is running at ${config.server}`);
-    process.exit(1);
-  }
-}
-
-async function cmdLogout() {
-  const config = getConfig();
-  config.token = null;
-  config.session = null;
-  config.username = null;
-  saveConfig(config);
-  success("Signed out. Token removed.");
-}
-
-async function cmdWhoami() {
-  const config = getConfig();
-  if (!config.token) {
-    error("Not signed in. Run: vpush login");
-    process.exit(1);
-  }
-
-  try {
-    const res = await request("GET", "/api/auth/me");
-    if (res.status === 200) {
-      log(
-        `\n${c.bold}${res.data.username}${c.reset} ${c.dim}(${res.data.role})${c.reset}`
-      );
-      log(`${c.dim}Server: ${config.server}${c.reset}\n`);
-    } else {
-      error("Token expired or invalid. Run: vpush login");
-      config.token = null;
-      saveConfig(config);
-      process.exit(1);
-    }
-  } catch (err) {
-    error(`Connection failed: ${err.message}`);
-    process.exit(1);
-  }
-}
-
-async function ensureAuth() {
-  const config = getConfig();
-  if (!config.token) {
-    error("Not signed in. Run: vpush login");
-    process.exit(1);
-  }
-
-  try {
-    const res = await request("GET", "/api/auth/me");
-    if (res.status !== 200) {
-      error("Token expired or invalid. Run: vpush login");
-      config.token = null;
-      saveConfig(config);
-      process.exit(1);
-    }
-    return res.data;
-  } catch (err) {
-    error(`Connection failed: ${err.message}`);
-    process.exit(1);
-  }
-}
-
-async function cmdInit() {
-  log(
-    `\n${c.bold}VPush${c.reset} ${c.dim}— Initialize project${c.reset}\n`
-  );
-
-  const existing = getProjectConfig();
-  if (existing) {
-    warn(`Project already initialized: ${c.bold}${existing.projectId}${c.reset}`);
-    const overwrite = await prompt(
-      `${c.yellow}Reinitialize?${c.reset} (y/N): `
-    );
-    if (overwrite.toLowerCase() !== "y") {
-      process.exit(0);
-    }
-  }
-
-  const user = await ensureAuth();
-  const config = getConfig();
-
-  const res = await request("GET", "/api/projects");
   if (res.status !== 200) {
-    error("Failed to fetch projects");
+    error(res.data.message || "Failed to resolve project");
     process.exit(1);
   }
-
-  const projects = res.data;
-
-  log(`${c.dim}Select a project or create a new one:${c.reset}\n`);
-
-  if (projects.length > 0) {
-    projects.forEach((p, i) => {
-      const vis = p.visibility === "public"
-        ? `${c.green}public${c.reset}`
-        : `${c.yellow}private${c.reset}`;
-      log(`  ${c.dim}${i + 1}.${c.reset} ${c.bold}${p.name}${c.reset} ${c.dim}(${p.projectId})${c.reset} ${vis}`);
-    });
-    log(`  ${c.dim}${projects.length + 1}.${c.reset} ${c.cyan}Create new project${c.reset}`);
-    log("");
-  }
-
-  let projectId;
-  if (projects.length > 0) {
-    const choice = await prompt(`${c.cyan}Choice${c.reset} [1-${projects.length + 1}]: `);
-    const idx = parseInt(choice) - 1;
-
-    if (idx === projects.length) {
-      projectId = await createProject();
-    } else if (idx >= 0 && idx < projects.length) {
-      projectId = projects[idx].projectId;
-    } else {
-      error("Invalid choice");
-      process.exit(1);
-    }
-  } else {
-    info("No existing projects found. Creating one...\n");
-    projectId = await createProject();
-  }
-
-  saveProjectConfig({
-    projectId: projectId,
-    server: config.server,
-    username: config.username,
-  });
-
-  if (!fs.existsSync(path.resolve(IGNORE_FILE))) {
-    fs.writeFileSync(
-      path.resolve(IGNORE_FILE),
-      "# VPush ignore patterns (one per line)\n# These files/folders won't be pushed\n\n" +
-        DEFAULT_IGNORE.join("\n") +
-        "\n"
-    );
-    success("Created .vpushignore");
-  }
-
-  log("");
-  success(`Project initialized: ${c.bold}${projectId}${c.reset}`);
-  log(`${c.dim}  Config saved to .vpush.json${c.reset}`);
-  log(
-    `\n${c.dim}  Next steps:${c.reset}\n    ${c.cyan}vpush push${c.reset}   Push files to server\n    ${c.cyan}vpush pull${c.reset}   Pull files from server\n    ${c.cyan}vpush status${c.reset} Check connection\n`
-  );
+  return res.data; // { projectId, name, visibility, ownerUsername, requiresPin, hasPin }
 }
 
-async function createProject() {
-  const name = await prompt(`${c.cyan}Project name${c.reset}: `);
-  if (!name) {
-    error("Project name is required");
+// ── Commands ────────────────────────────────────────────────
+
+async function cmdClone(projectRef) {
+  if (!projectRef) {
+    error("Usage: vpush <username/project>");
+    log(`\n  ${c.dim}Example:${c.reset} vpush idledev/mysite`);
+    log(`  ${c.dim}   or:${c.reset} vpush vpush.tech/idledev/mysite\n`);
     process.exit(1);
   }
 
-  const desc = await prompt(
-    `${c.cyan}Description${c.reset} ${c.dim}(optional)${c.reset}: `
-  );
-  const vis = await prompt(
-    `${c.cyan}Visibility${c.reset} ${c.dim}(public/private)${c.reset} [public]: `
-  );
+  const parsed = parseProjectRef(projectRef);
+  if (!parsed) {
+    error(`Invalid project. Use format: ${c.bold}username/project${c.reset}`);
+    process.exit(1);
+  }
 
-  const res = await request("POST", "/api/projects", {
-    name,
-    description: desc || "",
-    visibility: vis === "private" ? "private" : "public",
-  });
+  const { owner: username, name: projectName } = parsed;
 
-  if (res.status === 201 || res.status === 200) {
-    success(`Project created: ${c.bold}${name}${c.reset}`);
-    return res.data.projectId;
-  } else {
-    error(res.data.message || "Failed to create project");
+  log(`\n${c.bold}VPush${c.reset} ${c.dim}— Cloning${c.reset} ${c.cyan}${username}/${projectName}${c.reset}\n`);
+
+  try {
+    const resolved = await resolveProject(username, projectName);
+    const { projectId, name, visibility, hasPin } = resolved;
+    let pin = null;
+
+    // Ask for PIN if required (private) or available (public with pin for push access)
+    if (visibility === "private" || hasPin) {
+      pin = await promptHidden(`${c.cyan}PIN${c.reset}: `);
+      if (!pin && visibility === "private") {
+        error("PIN is required for private projects");
+        process.exit(1);
+      }
+
+      if (pin) {
+        const testRes = await request("GET", `/api/projects/${projectId}/files`, null, pin);
+        if (testRes.status === 403) {
+          error("Invalid PIN");
+          process.exit(1);
+        }
+      }
+    }
+
+    const dirName = projectName;
+    const targetDir = path.resolve(dirName);
+
+    if (fs.existsSync(targetDir)) {
+      const files = fs.readdirSync(targetDir);
+      if (files.length > 0 && !files.every((f) => f === ".vpush.json")) {
+        warn(`Directory '${dirName}' already exists.`);
+        const overwrite = await prompt(`${c.yellow}Continue anyway?${c.reset} (y/N): `);
+        if (overwrite.toLowerCase() !== "y") process.exit(0);
+      }
+    } else {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    const projectConfig = {
+      owner: username,
+      name,
+      server: getServerUrl(),
+      pin: pin || undefined,
+    };
+    fs.writeFileSync(path.join(targetDir, PROJECT_FILE), JSON.stringify(projectConfig, null, 2));
+
+    const ignorePath = path.join(targetDir, IGNORE_FILE);
+    if (!fs.existsSync(ignorePath)) {
+      fs.writeFileSync(
+        ignorePath,
+        "# VPush ignore patterns (one per line)\n\n" + DEFAULT_IGNORE.join("\n") + "\n"
+      );
+    }
+
+    const filesRes = await request("GET", `/api/projects/${projectId}/files`, null, pin);
+    if (filesRes.status !== 200) {
+      error("Failed to fetch files");
+      process.exit(1);
+    }
+
+    const remoteFiles = Array.isArray(filesRes.data) ? filesRes.data.filter((f) => !f.isDirectory) : [];
+
+    if (remoteFiles.length === 0) {
+      success(`Cloned ${c.bold}${username}/${name}${c.reset} ${c.dim}(empty project)${c.reset}`);
+      log(`\n  ${c.dim}cd ${dirName} && add files, then:${c.reset} vpush push\n`);
+      return;
+    }
+
+    info(`Pulling ${c.bold}${remoteFiles.length}${c.reset} file${remoteFiles.length !== 1 ? "s" : ""}...`);
+    log("");
+
+    let pulled = 0;
+    for (const file of remoteFiles) {
+      const fileRes = await request("GET", `/api/files/${file.id}`, null, pin);
+      if (fileRes.status !== 200) {
+        log(`  ${file.path} ${c.red}✗${c.reset}`);
+        continue;
+      }
+
+      const localPath = path.join(targetDir, file.path.replace(/^\//, ""));
+      const dir = path.dirname(localPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+      fs.writeFileSync(localPath, fileRes.data.content || "");
+      log(`  ${c.dim}${pulled + 1}/${remoteFiles.length}${c.reset} ${file.path} ${c.green}✓${c.reset}`);
+      pulled++;
+    }
+
+    log("");
+    const serverUrl = getServerUrl();
+    success(`Cloned ${c.bold}${username}/${name}${c.reset} → ${c.cyan}${dirName}/${c.reset} (${pulled} file${pulled !== 1 ? "s" : ""})`);
+    log(`\n  ${c.dim}URL:${c.reset} ${serverUrl}/${username}/${name}`);
+    log(`  ${c.dim}cd ${dirName}${c.reset}`);
+    log(`  ${c.dim}Make changes, then:${c.reset} vpush push\n`);
+  } catch (err) {
+    error(`Failed: ${err.message}`);
     process.exit(1);
   }
 }
@@ -625,16 +485,31 @@ async function createProject() {
 async function cmdPush() {
   const projectConfig = getProjectConfig();
   if (!projectConfig) {
-    error("No project initialized. Run: vpush init");
+    error("Not in a VPush project. Clone one first:");
+    log(`\n  vpush ${c.cyan}username/project${c.reset}\n`);
     process.exit(1);
   }
 
-  await ensureAuth();
-  const projectId = projectConfig.projectId;
+  let { pin, name, owner } = projectConfig;
+  if (!owner || !name) {
+    error("Invalid project config. Re-clone with: vpush <username/project>");
+    process.exit(1);
+  }
 
-  log(
-    `\n${c.bold}VPush${c.reset} ${c.dim}— Pushing to${c.reset} ${c.bold}${projectId}${c.reset}\n`
-  );
+  // Resolve owner/name to projectId
+  const resolved = await resolveProject(owner, name);
+  const projectId = resolved.projectId;
+
+  if (!pin) {
+    pin = await promptHidden(`${c.cyan}PIN${c.reset}: `);
+    if (pin) {
+      projectConfig.pin = pin;
+      saveProjectConfig(projectConfig);
+      success("PIN saved for future pushes");
+    }
+  }
+
+  log(`\n${c.bold}VPush${c.reset} ${c.dim}— Pushing to${c.reset} ${c.cyan}${owner}/${name}${c.reset}\n`);
 
   const ignorePatterns = getIgnorePatterns();
   const files = getAllFiles(process.cwd(), process.cwd(), ignorePatterns);
@@ -645,9 +520,7 @@ async function cmdPush() {
   }
 
   const totalSize = files.reduce((acc, f) => acc + f.size, 0);
-  info(
-    `Found ${c.bold}${files.length}${c.reset} files (${formatSize(totalSize)})`
-  );
+  info(`Found ${c.bold}${files.length}${c.reset} files (${formatSize(totalSize)})`);
   log("");
 
   let pushed = 0;
@@ -662,9 +535,10 @@ async function cmdPush() {
 
     try {
       const res = await uploadFile(
-        `/api/projects/${projectId}/upload`,
+        `/api/projects/${projectId}/cli-upload`,
         file.fullPath,
-        parentPath === "/" ? "/" : parentPath
+        parentPath === "/" ? "/" : parentPath,
+        pin || null
       );
 
       if (res.status === 200 || res.status === 201) {
@@ -683,14 +557,9 @@ async function cmdPush() {
   }
 
   log("");
-  if (pushed > 0)
-    success(
-      `Pushed ${c.bold}${pushed}${c.reset} file${pushed !== 1 ? "s" : ""}`
-    );
+  if (pushed > 0) success(`Pushed ${c.bold}${pushed}${c.reset} file${pushed !== 1 ? "s" : ""}`);
   if (failed > 0) {
-    error(
-      `Failed ${c.bold}${failed}${c.reset} file${failed !== 1 ? "s" : ""}`
-    );
+    error(`Failed ${c.bold}${failed}${c.reset} file${failed !== 1 ? "s" : ""}`);
     errors.forEach((e) => log(`  ${c.red}→${c.reset} ${e}`));
   }
   log("");
@@ -699,69 +568,62 @@ async function cmdPush() {
 async function cmdPull() {
   const projectConfig = getProjectConfig();
   if (!projectConfig) {
-    error("No project initialized. Run: vpush init");
+    error("Not in a VPush project. Clone one first:");
+    log(`\n  vpush ${c.cyan}username/project${c.reset}\n`);
     process.exit(1);
   }
 
-  await ensureAuth();
-  const projectId = projectConfig.projectId;
+  const { pin, name, owner } = projectConfig;
+  if (!owner || !name) {
+    error("Invalid project config. Re-clone with: vpush <username/project>");
+    process.exit(1);
+  }
 
-  log(
-    `\n${c.bold}VPush${c.reset} ${c.dim}— Pulling from${c.reset} ${c.bold}${projectId}${c.reset}\n`
-  );
+  // Resolve owner/name to projectId
+  const resolved = await resolveProject(owner, name);
+  const projectId = resolved.projectId;
+
+  log(`\n${c.bold}VPush${c.reset} ${c.dim}— Pulling from${c.reset} ${c.cyan}${owner}/${name}${c.reset}\n`);
 
   try {
-    const res = await request("GET", `/api/projects/${projectId}/files`);
+    const res = await request("GET", `/api/projects/${projectId}/files`, null, pin || null);
+    if (res.status === 403) {
+      error("Access denied. PIN may have changed.");
+      process.exit(1);
+    }
     if (res.status !== 200) {
       error(res.data.message || "Failed to fetch files");
       process.exit(1);
     }
 
-    const files = res.data.filter((f) => !f.isDirectory);
+    const files = Array.isArray(res.data) ? res.data.filter((f) => !f.isDirectory) : [];
     if (files.length === 0) {
       warn("No files to pull");
       process.exit(0);
     }
 
-    info(`Found ${c.bold}${files.length}${c.reset} files on server`);
+    info(`Found ${c.bold}${files.length}${c.reset} file${files.length !== 1 ? "s" : ""} on server`);
     log("");
 
     let pulled = 0;
-    let failed = 0;
-
     for (const file of files) {
-      const fileRes = await request("GET", `/api/files/${file.id}`);
+      const fileRes = await request("GET", `/api/files/${file.id}`, null, pin || null);
       if (fileRes.status !== 200) {
-        process.stdout.write(
-          `  ${file.path} ${c.red}✗${c.reset}\n`
-        );
-        failed++;
+        log(`  ${file.path} ${c.red}✗${c.reset}`);
         continue;
       }
 
-      const localPath = path.join(
-        process.cwd(),
-        file.path.replace(/^\//, "")
-      );
+      const localPath = path.join(process.cwd(), file.path.replace(/^\//, ""));
       const dir = path.dirname(localPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-      const content = fileRes.data.content || "";
-      fs.writeFileSync(localPath, content);
-      process.stdout.write(
-        `  ${c.dim}${pulled + failed + 1}/${files.length}${c.reset} ${file.path} ${c.green}✓${c.reset}\n`
-      );
+      fs.writeFileSync(localPath, fileRes.data.content || "");
+      log(`  ${c.dim}${pulled + 1}/${files.length}${c.reset} ${file.path} ${c.green}✓${c.reset}`);
       pulled++;
     }
 
     log("");
-    if (pulled > 0)
-      success(
-        `Pulled ${c.bold}${pulled}${c.reset} file${pulled !== 1 ? "s" : ""}`
-      );
-    if (failed > 0) error(`Failed ${c.bold}${failed}${c.reset}`);
+    if (pulled > 0) success(`Pulled ${c.bold}${pulled}${c.reset} file${pulled !== 1 ? "s" : ""}`);
     log("");
   } catch (err) {
     error(`Failed: ${err.message}`);
@@ -770,78 +632,21 @@ async function cmdPull() {
 }
 
 async function cmdStatus() {
-  const config = getConfig();
   const projectConfig = getProjectConfig();
 
-  log(`\n${c.bold}VPush Status${c.reset}\n`);
-  log(`  ${c.dim}Version:${c.reset}  ${VERSION}`);
-  log(`  ${c.dim}Server:${c.reset}   ${config.server || c.yellow + "not set" + c.reset}`);
-  log(
-    `  ${c.dim}Auth:${c.reset}     ${config.token ? c.green + "authenticated (token)" + c.reset : c.yellow + "not signed in" + c.reset}`
-  );
-  if (config.username) {
-    log(`  ${c.dim}User:${c.reset}     ${config.username}`);
-  }
-  log(
-    `  ${c.dim}Project:${c.reset}  ${projectConfig ? projectConfig.projectId : c.yellow + "not initialized" + c.reset}`
-  );
+  log(`\n${c.bold}VPush${c.reset} v${VERSION}\n`);
+  log(`  ${c.dim}Server:${c.reset}  ${getServerUrl()}`);
 
-  if (config.token) {
-    try {
-      const res = await request("GET", "/api/auth/me");
-      log(
-        `  ${c.dim}Token:${c.reset}    ${res.status === 200 ? c.green + "valid" + c.reset : c.red + "expired" + c.reset}`
-      );
-    } catch {
-      log(`  ${c.dim}Token:${c.reset}    ${c.red}unable to reach server${c.reset}`);
-    }
+  if (projectConfig) {
+    const projUrl = `${getServerUrl()}/${projectConfig.owner}/${projectConfig.name}`;
+    log(`  ${c.dim}Project:${c.reset} ${c.cyan}${projectConfig.owner}/${projectConfig.name}${c.reset}`);
+    log(`  ${c.dim}URL:${c.reset}     ${projUrl}`);
+    log(`  ${c.dim}PIN:${c.reset}     ${projectConfig.pin ? c.green + "saved" + c.reset : c.yellow + "none" + c.reset}`);
+  } else {
+    log(`  ${c.dim}Project:${c.reset} ${c.yellow}not linked${c.reset}`);
+    log(`\n  ${c.dim}Clone a project:${c.reset} vpush ${c.cyan}username/project${c.reset}`);
   }
   log("");
-}
-
-async function cmdToken(tokenValue) {
-  if (!tokenValue) {
-    const config = getConfig();
-    if (config.token) {
-      info(`Token is set: ${c.dim}${config.token.slice(0, 10)}...${config.token.slice(-4)}${c.reset}`);
-    } else {
-      warn("No token set. Generate one from the dashboard, then run:");
-      log(`  ${c.cyan}vpush token <your-token>${c.reset}`);
-    }
-    return;
-  }
-
-  const config = getConfig();
-
-  if (!config.server) {
-    error("No server set. Run: vpush server <url> first");
-    process.exit(1);
-  }
-
-  config.token = tokenValue;
-  saveConfig(config);
-
-  try {
-    const res = await request("GET", "/api/auth/me");
-    if (res.status === 200) {
-      config.username = res.data.username;
-      saveConfig(config);
-      log("");
-      success(`Authenticated as ${c.bold}${res.data.username}${c.reset}`);
-      log(`${c.dim}  Token saved to ~/.vpush/config.json${c.reset}`);
-      log(`${c.dim}  You're all set — no login needed.${c.reset}\n`);
-    } else {
-      config.token = null;
-      saveConfig(config);
-      error("Invalid token. Generate a new one from the dashboard.");
-      process.exit(1);
-    }
-  } catch (err) {
-    config.token = null;
-    saveConfig(config);
-    error(`Connection failed: ${err.message}`);
-    process.exit(1);
-  }
 }
 
 async function cmdServer(url) {
@@ -851,45 +656,39 @@ async function cmdServer(url) {
     saveConfig(config);
     success(`Server set to ${config.server}`);
   } else {
-    if (config.server) {
-      log(`Current server: ${c.bold}${config.server}${c.reset}`);
-    } else {
-      warn("No server configured. Run: vpush server <url>");
-    }
+    log(`Server: ${c.bold}${getServerUrl()}${c.reset}`);
   }
 }
 
 function showHelp() {
   log(`
 ${c.bold}VPush CLI${c.reset} v${VERSION}
-${c.dim}Deploy files to your servers${c.reset}
+${c.dim}Push and pull files to your projects${c.reset}
 
 ${c.bold}USAGE${c.reset}
-  vpush <command> [options]
+  vpush ${c.cyan}<username/project>${c.reset}   Clone a project (or use full URL)
+  vpush ${c.cyan}push${c.reset}                 Push local files to server
+  vpush ${c.cyan}pull${c.reset}                 Pull latest files from server
+  vpush ${c.cyan}status${c.reset}               Show project info
 
-${c.bold}COMMANDS${c.reset}
-  ${c.cyan}token${c.reset} <token>       Set API token (from dashboard — no login needed)
-  ${c.cyan}login${c.reset}              Sign in interactively (generates token)
-  ${c.cyan}logout${c.reset}             Sign out and remove token
-  ${c.cyan}whoami${c.reset}             Show current user
-  ${c.cyan}init${c.reset}               Initialize project in current directory
-  ${c.cyan}push${c.reset}               Push local files to server
-  ${c.cyan}pull${c.reset}               Pull files from server to local
-  ${c.cyan}status${c.reset}             Show connection and project status
-  ${c.cyan}server${c.reset} <url>       Set or show server URL
+${c.bold}GETTING STARTED${c.reset}
+  ${c.dim}$${c.reset} vpush idledev/mysite              ${c.dim}# clone by name${c.reset}
+  ${c.dim}$${c.reset} vpush vpush.tech/idledev/mysite   ${c.dim}# clone by URL${c.reset}
+  ${c.dim}$${c.reset} cd mysite                ${c.dim}# enter project folder${c.reset}
+  ${c.dim}$${c.reset} vpush push               ${c.dim}# push your changes${c.reset}
 
-${c.bold}GETTING STARTED${c.reset} ${c.dim}(copy these from your dashboard)${c.reset}
-  ${c.dim}1.${c.reset} vpush server https://vpush.tech
-  ${c.dim}2.${c.reset} vpush token <paste-token-from-dashboard>
-  ${c.dim}3.${c.reset} cd your-project && vpush init
-  ${c.dim}4.${c.reset} vpush push
+${c.bold}OTHER${c.reset}
+  vpush ${c.cyan}server${c.reset} <url>         Set custom server URL
+  vpush ${c.cyan}help${c.reset}                 Show this help
+  vpush ${c.cyan}-v${c.reset}                   Show version
 
 ${c.bold}FILES${c.reset}
-  ${c.dim}.vpush.json${c.reset}     Project config (created by vpush init)
+  ${c.dim}.vpush.json${c.reset}     Project config (created on clone)
   ${c.dim}.vpushignore${c.reset}    Ignore patterns (like .gitignore)
-  ${c.dim}~/.vpush/${c.reset}       Global config and token data
 `);
 }
+
+// ── Main ────────────────────────────────────────────────────
 
 async function main() {
   const args = process.argv.slice(2);
@@ -907,21 +706,6 @@ async function main() {
 
   try {
     switch (command) {
-      case "token":
-        await cmdToken(args[1]);
-        break;
-      case "login":
-        await cmdLogin();
-        break;
-      case "logout":
-        await cmdLogout();
-        break;
-      case "whoami":
-        await cmdWhoami();
-        break;
-      case "init":
-        await cmdInit();
-        break;
       case "push":
         await cmdPush();
         break;
@@ -935,9 +719,13 @@ async function main() {
         await cmdServer(args[1]);
         break;
       default:
-        error(`Unknown command: ${command}`);
-        log(`${c.dim}Run 'vpush help' for usage${c.reset}`);
-        process.exit(1);
+        if (command.includes("/") || command.includes(".")) {
+          await cmdClone(command);
+        } else {
+          error(`Unknown command: ${command}`);
+          log(`${c.dim}Run 'vpush help' for usage${c.reset}`);
+          process.exit(1);
+        }
     }
   } catch (err) {
     error(`Unexpected error: ${err.message}`);

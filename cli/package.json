@@ -1,6 +1,6 @@
 {
   "name": "vpush-cli",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "CLI tool for VPush — deploy files to your VPS servers",
   "main": "index.js",
   "bin": {

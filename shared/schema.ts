@@ -10,6 +10,8 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   displayName: text("display_name"),
   role: text("role").notNull().default("user"),
+  totpSecret: text("totp_secret"),
+  totpEnabled: boolean("totp_enabled").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -9,9 +9,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { Terminal, ArrowRight, Loader2, Check, X, User, Lock, Mail, Rocket } from "lucide-react";
+import { Terminal, ArrowRight, Loader2, Check, X, User, Lock, Mail, Rocket, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 function UsernameInput({
   value,
@@ -104,6 +108,14 @@ export default function AuthPage() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState("idle");
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetStep, setResetStep] = useState<"username" | "code" | "newPassword">("username");
+  const [resetUsername, setResetUsername] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
   const { login, register, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -145,6 +157,58 @@ export default function AuthPage() {
         description: err.message || "Something went wrong",
         variant: "destructive",
       });
+    }
+  };
+
+  const openForgotPassword = () => {
+    setShowForgotPassword(true);
+    setResetStep("username");
+    setResetUsername("");
+    setResetCode("");
+    setResetToken("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+  };
+
+  const handleResetVerify = async () => {
+    if (!resetUsername.trim() || resetCode.length !== 6) return;
+    setResetLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/auth/reset-password/verify", {
+        username: resetUsername.trim(),
+        code: resetCode,
+      });
+      const data = await res.json();
+      setResetToken(data.resetToken);
+      setResetStep("newPassword");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Verification failed", variant: "destructive" });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleResetComplete = async () => {
+    if (newPassword.length < 6) {
+      toast({ title: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast({ title: "Passwords don't match", variant: "destructive" });
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await apiRequest("POST", "/api/auth/reset-password/complete", {
+        resetToken,
+        newPassword,
+      });
+      toast({ title: "Password updated", description: "You can now sign in with your new password." });
+      setShowForgotPassword(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Reset failed", variant: "destructive" });
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -313,7 +377,17 @@ export default function AuthPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="login-password" className="text-sm font-medium">Password</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="login-password" className="text-sm font-medium">Password</Label>
+                      <button
+                        type="button"
+                        onClick={openForgotPassword}
+                        className="text-xs text-primary hover:underline"
+                        data-testid="button-forgot-password"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
                     <Input
                       id="login-password"
                       data-testid="input-password"
@@ -370,6 +444,126 @@ export default function AuthPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={showForgotPassword} onOpenChange={(open) => { if (!open) setShowForgotPassword(false); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              {resetStep === "username" && "Reset Password"}
+              {resetStep === "code" && "Enter Authenticator Code"}
+              {resetStep === "newPassword" && "Set New Password"}
+            </DialogTitle>
+            <DialogDescription>
+              {resetStep === "username" && "Enter your username to begin the password reset process."}
+              {resetStep === "code" && "Open your authenticator app and enter the 6-digit code."}
+              {resetStep === "newPassword" && "Choose a new password for your account."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {resetStep === "username" && (
+            <div className="space-y-4 mt-2">
+              <div className="space-y-2">
+                <Label htmlFor="reset-username" className="text-sm">Username</Label>
+                <Input
+                  id="reset-username"
+                  value={resetUsername}
+                  onChange={(e) => setResetUsername(e.target.value.toLowerCase())}
+                  placeholder="Enter your username"
+                  data-testid="input-reset-username"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Password reset requires two-factor authentication to be enabled on your account.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowForgotPassword(false)}>Cancel</Button>
+                <Button
+                  onClick={() => { if (resetUsername.trim()) setResetStep("code"); }}
+                  disabled={!resetUsername.trim()}
+                  data-testid="button-reset-next"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {resetStep === "code" && (
+            <div className="space-y-4 mt-2">
+              <div className="space-y-2">
+                <Label htmlFor="reset-code" className="text-sm">Authenticator Code</Label>
+                <Input
+                  id="reset-code"
+                  value={resetCode}
+                  onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="Enter 6-digit code"
+                  className="text-center text-lg font-mono tracking-widest"
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  data-testid="input-reset-code"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setResetStep("username")}>Back</Button>
+                <Button
+                  onClick={handleResetVerify}
+                  disabled={resetCode.length !== 6 || resetLoading}
+                  className="gap-2"
+                  data-testid="button-reset-verify"
+                >
+                  {resetLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  Verify
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {resetStep === "newPassword" && (
+            <div className="space-y-4 mt-2">
+              <div className="space-y-2">
+                <Label htmlFor="new-password" className="text-sm">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  minLength={6}
+                  data-testid="input-new-password"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-new-password" className="text-sm">Confirm Password</Label>
+                <Input
+                  id="confirm-new-password"
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  placeholder="Re-enter new password"
+                  minLength={6}
+                  data-testid="input-confirm-new-password"
+                />
+                {confirmNewPassword && newPassword !== confirmNewPassword && (
+                  <p className="text-xs text-destructive">Passwords don't match</p>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowForgotPassword(false)}>Cancel</Button>
+                <Button
+                  onClick={handleResetComplete}
+                  disabled={resetLoading || newPassword.length < 6 || newPassword !== confirmNewPassword}
+                  className="gap-2"
+                  data-testid="button-reset-complete"
+                >
+                  {resetLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                  Reset Password
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showWelcome} onOpenChange={(open) => {
         if (!open) {

@@ -12,11 +12,13 @@ import path from "path";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
+const resetTokens = new Map<string, { userId: string; expiresAt: number }>();
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  setupAuth(app);
+  await setupAuth(app);
   app.use(tokenAuth);
 
   app.get("/cli/index.js", (req, res) => {
@@ -109,7 +111,7 @@ export async function registerRoutes(
   app.get("/api/auth/me", (req, res) => {
     if (!req.user && !req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     const user = req.user as any;
-    return res.json({ id: user.id, username: user.username, displayName: user.displayName, role: user.role });
+    return res.json({ id: user.id, username: user.username, displayName: user.displayName, role: user.role, totpEnabled: user.totpEnabled });
   });
 
   app.post("/api/auth/token", requireAuth, async (req, res) => {
@@ -147,6 +149,94 @@ export async function registerRoutes(
       const user = req.user as any;
       await storage.deleteApiToken(req.params.id, user.id);
       return res.json({ message: "Token deleted" });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/auth/totp/setup", requireAuth, async (req, res) => {
+    try {
+      const { generateSecret, generateURI } = await import("otplib");
+      const QRCode = await import("qrcode");
+      const user = req.user as any;
+      const secret = generateSecret();
+      await storage.setTotpSecret(user.id, secret);
+      const otpauth = generateURI({ type: "totp", issuer: "VPush", label: user.username, secret });
+      const qrDataUrl = await QRCode.toDataURL(otpauth);
+      return res.json({ secret, qrCode: qrDataUrl });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/auth/totp/verify", requireAuth, async (req, res) => {
+    try {
+      const { verifySync } = await import("otplib");
+      const user = req.user as any;
+      const fullUser = await storage.getUser(user.id);
+      if (!fullUser?.totpSecret) return res.status(400).json({ message: "TOTP not set up" });
+      const { code } = req.body;
+      if (!code) return res.status(400).json({ message: "Code required" });
+      const isValid = verifySync({ token: code, secret: fullUser.totpSecret });
+      if (!isValid) return res.status(400).json({ message: "Invalid code" });
+      await storage.enableTotp(user.id);
+      return res.json({ message: "Two-factor authentication enabled" });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/auth/totp/disable", requireAuth, async (req, res) => {
+    try {
+      const { verifySync } = await import("otplib");
+      const user = req.user as any;
+      const fullUser = await storage.getUser(user.id);
+      if (!fullUser?.totpEnabled || !fullUser?.totpSecret) return res.status(400).json({ message: "TOTP not enabled" });
+      const { code } = req.body;
+      if (!code) return res.status(400).json({ message: "Code required" });
+      const isValid = verifySync({ token: code, secret: fullUser.totpSecret });
+      if (!isValid) return res.status(400).json({ message: "Invalid code" });
+      await storage.disableTotp(user.id);
+      return res.json({ message: "Two-factor authentication disabled" });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/auth/reset-password/verify", async (req, res) => {
+    try {
+      const { verifySync } = await import("otplib");
+      const { username, code } = req.body;
+      if (!username || !code) return res.status(400).json({ message: "Username and code required" });
+      const user = await storage.getUserByUsername(username.toLowerCase().trim());
+      if (!user) return res.status(400).json({ message: "User not found" });
+      if (!user.totpEnabled || !user.totpSecret) return res.status(400).json({ message: "Two-factor authentication not enabled for this account" });
+      const isValid = verifySync({ token: code, secret: user.totpSecret });
+      if (!isValid) return res.status(400).json({ message: "Invalid authenticator code" });
+      const { randomBytes } = await import("crypto");
+      const resetToken = randomBytes(32).toString("hex");
+      const expiry = Date.now() + 10 * 60 * 1000;
+      resetTokens.set(resetToken, { userId: user.id, expiresAt: expiry });
+      return res.json({ resetToken });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/auth/reset-password/complete", async (req, res) => {
+    try {
+      const { resetToken, newPassword } = req.body;
+      if (!resetToken || !newPassword) return res.status(400).json({ message: "Reset token and new password required" });
+      if (newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
+      const entry = resetTokens.get(resetToken);
+      if (!entry || entry.expiresAt < Date.now()) {
+        resetTokens.delete(resetToken);
+        return res.status(400).json({ message: "Reset token expired or invalid" });
+      }
+      const hashedPassword = hashPassword(newPassword);
+      await storage.updatePassword(entry.userId, hashedPassword);
+      resetTokens.delete(resetToken);
+      return res.json({ message: "Password updated successfully" });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
@@ -247,7 +337,7 @@ export async function registerRoutes(
       if (!project) return res.status(404).json({ message: "Project not found" });
       if (project.userId !== (req.user as any).id) return res.status(403).json({ message: "Forbidden" });
 
-      const pin = nanoid(8);
+      const pin = String(Math.floor(1000 + Math.random() * 9000));
       await storage.updateProject(project.id, { authPin: pin });
       return res.json({ pin });
     } catch (err: any) {
@@ -509,6 +599,77 @@ export async function registerRoutes(
       const projects = await storage.getProjectsByUser(user.id);
       const publicProjects = projects.filter((p) => p.visibility === "public");
       return res.json(publicProjects);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // CLI: resolve username/projectname to projectId
+  app.get("/api/resolve/:username/:projectName", async (req, res) => {
+    try {
+      const user = await storage.getUserByUsername(req.params.username.toLowerCase());
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const projects = await storage.getProjectsByUser(user.id);
+      const project = projects.find(p => p.name.toLowerCase() === req.params.projectName.toLowerCase());
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      return res.json({
+        projectId: project.projectId,
+        name: project.name,
+        visibility: project.visibility,
+        ownerUsername: user.username,
+        requiresPin: project.visibility === "private" && !!project.authPin,
+        hasPin: !!project.authPin,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // CLI: PIN-based upload (no login required, just valid PIN)
+  app.post("/api/projects/:projectId/cli-upload", upload.array("files", 50), async (req, res) => {
+    try {
+      const project = await storage.getProjectByProjectId(req.params.projectId);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+
+      // Check auth: either logged-in owner, or valid PIN
+      const isOwner = !!req.user && (req.user as any).id === project.userId;
+      if (!isOwner) {
+        const pin = req.headers["x-auth-pin"] as string;
+        if (!project.authPin) return res.status(403).json({ message: "Project has no CLI PIN. Generate one in project settings." });
+        if (!pin || pin !== project.authPin) return res.status(403).json({ message: "Invalid PIN" });
+      }
+
+      const parentPath = (req.body.parentPath as string) || "/";
+      const uploadedFiles = req.files as Express.Multer.File[];
+      const results: any[] = [];
+
+      for (const file of uploadedFiles) {
+        const filePath = parentPath === "/" ? `/${file.originalname}` : `${parentPath}/${file.originalname}`;
+        const existing = await storage.getFileByPath(project.projectId, filePath);
+
+        if (existing) {
+          await storage.createFileVersion(existing.id, existing.content, existing.size || 0);
+          const updated = await storage.updateFile(existing.id, {
+            content: file.buffer.toString("utf-8"),
+            size: file.size,
+            mimeType: file.mimetype,
+          });
+          results.push(updated);
+        } else {
+          const created = await storage.createFile(project.projectId, {
+            name: file.originalname,
+            path: filePath,
+            isDirectory: false,
+            content: file.buffer.toString("utf-8"),
+            size: file.size,
+            mimeType: file.mimetype,
+            parentPath,
+          });
+          results.push(created);
+        }
+      }
+
+      return res.json(results);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

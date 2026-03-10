@@ -51,7 +51,6 @@ import {
   Loader2,
   FileText,
   History,
-  X,
   Save,
   Copy,
   Check,
@@ -61,6 +60,7 @@ import {
   Image,
   FileSpreadsheet,
   Braces,
+  Terminal,
 } from "lucide-react";
 import {
   SiPython,
@@ -179,6 +179,25 @@ function isTextFile(name: string): boolean {
   const textExts = ["txt", "md", "json", "js", "ts", "jsx", "tsx", "py", "rb", "go", "rs", "java", "c", "cpp", "h", "css", "scss", "html", "xml", "yaml", "yml", "toml", "sh", "bash", "sql", "php", "env", "gitignore", "dockerignore", "makefile", "conf", "cfg", "ini", "log", "csv"];
   const ext = name.split(".").pop()?.toLowerCase();
   return textExts.includes(ext || "");
+}
+
+function CliCopyBlock({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-center gap-2 rounded-lg bg-[#0d1117] border border-border px-3 py-2 font-mono text-sm">
+      <code className="text-green-400 flex-1 truncate">$ {command}</code>
+      <button
+        onClick={() => {
+          navigator.clipboard.writeText(command);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }}
+        className="p-1 rounded hover:bg-white/10 transition-colors flex-shrink-0"
+      >
+        {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-white/40" />}
+      </button>
+    </div>
+  );
 }
 
 export default function ProjectView() {
@@ -523,7 +542,133 @@ export default function ProjectView() {
           )}
         </div>
 
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        {viewingFile ? (
+          <div className="rounded-xl border border-border overflow-hidden bg-card">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#30363d] bg-[#161b22]">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  onClick={() => { setViewingFile(null); setIsEditing(false); }}
+                  className="p-1 rounded hover:bg-white/10 transition-colors"
+                  data-testid="button-back-to-files"
+                >
+                  <ArrowLeft className="w-4 h-4 text-[#8b949e]" />
+                </button>
+                {getFileIcon(viewingFile.name, false)}
+                <span className="text-sm font-mono text-[#e6edf3] font-medium truncate">{viewingFile.name}</span>
+                <Badge variant="secondary" className="text-[10px] h-5 bg-[#30363d] text-[#8b949e] border-0">
+                  {getLanguageLabel(viewingFile.name)}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                {isOwner && isTextFile(viewingFile.name) && !isEditing && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1.5 text-xs border-[#30363d] bg-transparent text-[#c9d1d9] hover:bg-[#30363d] hover:text-[#e6edf3]"
+                    onClick={() => setIsEditing(true)}
+                    data-testid="button-edit-file"
+                  >
+                    <Pencil className="w-3 h-3" /> Edit
+                  </Button>
+                )}
+                {isEditing && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs border-[#30363d] bg-transparent text-[#c9d1d9] hover:bg-[#30363d]"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setEditContent(viewingFile.content || "");
+                      }}
+                      data-testid="button-cancel-edit"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs bg-[#238636] hover:bg-[#2ea043] border-0 text-white"
+                      onClick={() =>
+                        saveFileMutation.mutate({ id: viewingFile.id, content: editContent })
+                      }
+                      disabled={saveFileMutation.isPending}
+                      data-testid="button-save-file"
+                    >
+                      {saveFileMutation.isPending ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Save className="w-3 h-3" />
+                      )}
+                      Save
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="overflow-auto bg-[#0d1117]" style={{ minHeight: "60vh" }}>
+              {isEditing ? (
+                <div className="flex min-h-[60vh]">
+                  <div className="select-none text-right pr-3 pl-4 py-3 text-[#484f58] font-mono text-sm leading-[1.45rem] border-r border-[#21262d] bg-[#0d1117] flex-shrink-0" aria-hidden="true">
+                    {editContent.split("\n").map((_, i) => (
+                      <div key={i}>{i + 1}</div>
+                    ))}
+                  </div>
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="w-full min-h-[60vh] bg-transparent text-[#e6edf3] font-mono text-sm py-3 px-4 resize-none outline-none leading-[1.45rem]"
+                    spellCheck={false}
+                    data-testid="textarea-file-editor"
+                  />
+                </div>
+              ) : (
+                <div className="flex">
+                  <div className="select-none text-right pr-3 pl-4 py-3 text-[#484f58] font-mono text-sm leading-[1.45rem] border-r border-[#21262d] bg-[#0d1117] flex-shrink-0" aria-hidden="true">
+                    {(viewingFile.content || " ").split("\n").map((_, i) => (
+                      <div key={i}>{i + 1}</div>
+                    ))}
+                  </div>
+                  <pre className="text-sm text-[#e6edf3] font-mono py-3 px-4 overflow-x-auto whitespace-pre leading-[1.45rem] flex-1" data-testid="pre-file-content">
+                    {viewingFile.content || "(empty file)"}
+                  </pre>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-between px-4 py-1.5 border-t border-[#30363d] bg-[#161b22] text-[10px] text-[#8b949e] font-mono">
+              <div className="flex items-center gap-3">
+                <span>{getLanguageLabel(viewingFile.name)}</span>
+                <span>{isEditing ? editContent.split("\n").length : (viewingFile.content || "").split("\n").length} lines</span>
+                <span>{formatBytes(isEditing ? new Blob([editContent]).size : (viewingFile.size || 0))}</span>
+              </div>
+              <span>{isEditing ? "Editing" : "Read-only"}</span>
+            </div>
+          </div>
+        ) : (
+          <>
+            {isOwner && (
+              <div className="mb-6 rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Terminal className="w-4 h-4 text-muted-foreground" />
+                  <h3 className="text-sm font-semibold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>CLI Commands</h3>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider font-medium">Clone</p>
+                    <CliCopyBlock command={`vpush ${username}/${project.name}`} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider font-medium">Push changes</p>
+                    <CliCopyBlock command="vpush push" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider font-medium">Pull latest</p>
+                    <CliCopyBlock command="vpush pull" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
             <div className="flex items-center gap-1 text-sm overflow-x-auto">
               <button
@@ -715,6 +860,8 @@ export default function ProjectView() {
             </div>
           )}
         </div>
+          </>
+        )}
       </main>
 
       <Dialog open={showNewFolder} onOpenChange={setShowNewFolder}>
@@ -820,104 +967,6 @@ export default function ProjectView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <Dialog open={!!viewingFile} onOpenChange={() => { setViewingFile(null); setIsEditing(false); }}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden [&>button]:text-[#8b949e] [&>button]:hover:text-white [&>button]:top-2.5 [&>button]:right-3 [&>button]:z-10">
-          <DialogTitle className="sr-only">{viewingFile?.name || "File"}</DialogTitle>
-          <DialogDescription className="sr-only">View and edit file content</DialogDescription>
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#30363d] bg-[#161b22] pr-10">
-            <div className="flex items-center gap-2 min-w-0">
-              {viewingFile && getFileIcon(viewingFile.name, false)}
-              <span className="text-sm font-mono text-[#e6edf3] font-medium truncate">{viewingFile?.name}</span>
-              <Badge variant="secondary" className="text-[10px] h-5 bg-[#30363d] text-[#8b949e] border-0">
-                {viewingFile ? getLanguageLabel(viewingFile.name) : ""}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              {isOwner && viewingFile && isTextFile(viewingFile.name) && !isEditing && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs border-[#30363d] bg-transparent text-[#c9d1d9] hover:bg-[#30363d] hover:text-[#e6edf3]"
-                  onClick={() => setIsEditing(true)}
-                  data-testid="button-edit-file"
-                >
-                  <Pencil className="w-3 h-3" /> Edit
-                </Button>
-              )}
-              {isEditing && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 gap-1.5 text-xs border-[#30363d] bg-transparent text-[#c9d1d9] hover:bg-[#30363d]"
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditContent(viewingFile?.content || "");
-                    }}
-                    data-testid="button-cancel-edit"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-7 gap-1.5 text-xs bg-[#238636] hover:bg-[#2ea043] border-0 text-white"
-                    onClick={() =>
-                      viewingFile && saveFileMutation.mutate({ id: viewingFile.id, content: editContent })
-                    }
-                    disabled={saveFileMutation.isPending}
-                    data-testid="button-save-file"
-                  >
-                    {saveFileMutation.isPending ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <Save className="w-3 h-3" />
-                    )}
-                    Save
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="flex-1 overflow-auto bg-[#0d1117]">
-            {isEditing ? (
-              <div className="flex min-h-[450px]">
-                <div className="select-none text-right pr-3 pl-4 py-3 text-[#484f58] font-mono text-sm leading-[1.45rem] border-r border-[#21262d] bg-[#0d1117] flex-shrink-0" aria-hidden="true">
-                  {editContent.split("\n").map((_, i) => (
-                    <div key={i}>{i + 1}</div>
-                  ))}
-                </div>
-                <textarea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="w-full min-h-[450px] bg-transparent text-[#e6edf3] font-mono text-sm py-3 px-4 resize-none outline-none leading-[1.45rem]"
-                  spellCheck={false}
-                  data-testid="textarea-file-editor"
-                />
-              </div>
-            ) : (
-              <div className="flex">
-                <div className="select-none text-right pr-3 pl-4 py-3 text-[#484f58] font-mono text-sm leading-[1.45rem] border-r border-[#21262d] bg-[#0d1117] flex-shrink-0" aria-hidden="true">
-                  {(viewingFile?.content || " ").split("\n").map((_, i) => (
-                    <div key={i}>{i + 1}</div>
-                  ))}
-                </div>
-                <pre className="text-sm text-[#e6edf3] font-mono py-3 px-4 overflow-x-auto whitespace-pre leading-[1.45rem] flex-1" data-testid="pre-file-content">
-                  {viewingFile?.content || "(empty file)"}
-                </pre>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center justify-between px-4 py-1.5 border-t border-[#30363d] bg-[#161b22] text-[10px] text-[#8b949e] font-mono">
-            <div className="flex items-center gap-3">
-              <span>{viewingFile ? getLanguageLabel(viewingFile.name) : ""}</span>
-              <span>{isEditing ? editContent.split("\n").length : (viewingFile?.content || "").split("\n").length} lines</span>
-              <span>{viewingFile ? formatBytes(isEditing ? new Blob([editContent]).size : (viewingFile.size || 0)) : ""}</span>
-            </div>
-            <span>{isEditing ? "Editing" : "Read-only"}</span>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={!!showVersions} onOpenChange={() => setShowVersions(null)}>
         <DialogContent className="sm:max-w-md">

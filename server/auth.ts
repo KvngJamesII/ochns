@@ -3,11 +3,19 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { storage } from "./storage";
 import { scryptSync, randomBytes, timingSafeEqual } from "crypto";
 import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
-import { pool } from "./db";
+import { hasDatabase, pool } from "./db";
 import type { Express, Request } from "express";
 
-const PgStore = connectPgSimple(session);
+async function createSessionStore() {
+  if (hasDatabase) {
+    const { default: connectPgSimple } = await import("connect-pg-simple");
+    const PgStore = connectPgSimple(session);
+    return new PgStore({ pool, createTableIfMissing: true });
+  }
+  const { default: createMemoryStore } = await import("memorystore");
+  const MemoryStore = createMemoryStore(session);
+  return new MemoryStore({ checkPeriod: 86400000 });
+}
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -22,13 +30,11 @@ export function verifyPassword(password: string, stored: string): boolean {
   return timingSafeEqual(hashBuffer, testBuffer);
 }
 
-export function setupAuth(app: Express) {
+export async function setupAuth(app: Express) {
+  const store = await createSessionStore();
   app.use(
     session({
-      store: new PgStore({
-        pool,
-        createTableIfMissing: true,
-      }),
+      store,
       secret: process.env.SESSION_SECRET || "vpush-secret-key",
       resave: false,
       saveUninitialized: false,

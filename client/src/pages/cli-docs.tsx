@@ -1,7 +1,6 @@
 import { Header } from "@/components/header";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Terminal, Download, Copy, Check, ArrowRight } from "lucide-react";
+import { Terminal, Download, Copy, Check } from "lucide-react";
 import { SiApple, SiLinux } from "react-icons/si";
 import { useState } from "react";
 
@@ -46,34 +45,34 @@ export default function CliDocs() {
         <div className="mb-12">
           <Badge variant="secondary" className="mb-4" data-testid="badge-cli-version">
             <Terminal className="w-3 h-3 mr-1" />
-            CLI v1.0.0
+            CLI v2.0.0
           </Badge>
           <h1
             className="text-3xl sm:text-4xl font-bold tracking-tight mb-3"
             style={{ fontFamily: "'Space Grotesk', sans-serif" }}
             data-testid="text-cli-title"
           >
-            Install VPush CLI
+            VPush CLI
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl">
-            The command-line tool for deploying files to your VPS servers. Works on Windows, macOS, and Linux.
+            The easiest way to move files between your computer and your VPush projects. No accounts or tokens needed on your server — just one command.
           </p>
         </div>
 
         <section className="mb-12">
           <h2 className="text-xl font-semibold mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-            Quick Install
+            Install
           </h2>
           <div className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
-                <span className="font-medium text-foreground">Option 1:</span> Install via npm (requires Node.js)
+                <span className="font-medium text-foreground">Option 1:</span> Install with npm (if you have Node.js)
               </p>
               <CopyBlock text="npm install -g vpush-cli" label="npm" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
-                <span className="font-medium text-foreground">Option 2:</span> Download directly
+                <span className="font-medium text-foreground">Option 2:</span> Download the file directly
               </p>
               <div className="grid sm:grid-cols-3 gap-3">
                 <a href="/cli/index.js" className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-colors" data-testid="link-download-windows">
@@ -107,56 +106,53 @@ export default function CliDocs() {
 
         <section className="mb-12">
           <h2 className="text-xl font-semibold mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-            Getting Started
+            How It Works
           </h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            VPush CLI lets you download and upload your project files from the terminal. Here's all you need to do:
+          </p>
           <div className="space-y-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">1</span>
-                <h3 className="font-medium">Set your server URL</h3>
+                <h3 className="font-medium">Clone your project</h3>
               </div>
-              <CopyBlock text="vpush server https://vpush.tech" label="set-server" />
+              <p className="text-xs text-muted-foreground mb-2">
+                Open a terminal on your server (or any computer) and run this command. Replace <code className="px-1 py-0.5 rounded bg-muted font-mono">username</code> and <code className="px-1 py-0.5 rounded bg-muted font-mono">project</code> with your actual username and project name from VPush.
+              </p>
+              <CopyBlock text="vpush username/project" label="clone" />
+              <p className="text-xs text-muted-foreground mt-2">
+                This downloads all your project files into a new folder. If the project is private, you'll be asked for your 4-digit PIN (you can find it on your project's settings page).
+              </p>
             </div>
 
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">2</span>
-                <h3 className="font-medium">Set your API token</h3>
+                <h3 className="font-medium">Push your changes</h3>
               </div>
               <p className="text-xs text-muted-foreground mb-2">
-                Generate a token from your <a href="/settings" className="text-primary hover:underline">Settings page</a>, then paste it here.
+                After you edit files on your server, push them back to VPush so you can see them on the website:
               </p>
-              <CopyBlock text="vpush token YOUR_TOKEN_HERE" label="token" />
+              <CopyBlock text="vpush push" label="push" />
             </div>
 
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">3</span>
-                <h3 className="font-medium">Initialize a project</h3>
+                <h3 className="font-medium">Pull latest files</h3>
               </div>
-              <CopyBlock text="vpush init" label="init" />
-              <p className="text-xs text-muted-foreground mt-2">
-                This creates a <code className="px-1 py-0.5 rounded bg-muted font-mono">.vpush.json</code> config file in your project directory.
+              <p className="text-xs text-muted-foreground mb-2">
+                If you edited files on the VPush website and want to get those changes on your server:
               </p>
+              <CopyBlock text="vpush pull" label="pull" />
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">4</span>
-                <h3 className="font-medium">Push or pull your files</h3>
-              </div>
-              <CopyBlock text="vpush push" label="push" />
-              <p className="text-xs text-muted-foreground mt-2">
-                Use <code className="px-1 py-0.5 rounded bg-muted font-mono">vpush pull</code> to download files from the server instead.
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+              <h3 className="text-sm font-semibold mb-2">That's it!</h3>
+              <p className="text-xs text-muted-foreground">
+                No accounts, no tokens, no complicated setup. Just clone once, then push and pull whenever you need. The CLI remembers your project so you don't have to type the name again.
               </p>
-            </div>
-
-            <div className="rounded-xl border border-border bg-card p-5">
-              <h3 className="text-sm font-semibold mb-2">Alternative: Interactive login</h3>
-              <p className="text-xs text-muted-foreground mb-3">
-                If you prefer, you can sign in interactively instead of using a token. This will prompt for your username and password and generate a token automatically.
-              </p>
-              <CopyBlock text="vpush login" label="login-alt" />
             </div>
           </div>
         </section>
@@ -170,20 +166,17 @@ export default function CliDocs() {
               <thead>
                 <tr className="border-b border-border bg-muted/30">
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Command</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">What it does</th>
                 </tr>
               </thead>
               <tbody>
                 {[
-                  ["vpush server <url>", "Set or show server URL"],
-                  ["vpush token <token>", "Set an API token for authentication"],
-                  ["vpush init", "Initialize project in current directory"],
-                  ["vpush push", "Push local files to server"],
-                  ["vpush pull", "Pull files from server to local"],
-                  ["vpush status", "Show connection and project status"],
-                  ["vpush whoami", "Show current signed-in user"],
-                  ["vpush login", "Interactive sign-in (alternative to token)"],
-                  ["vpush logout", "Sign out and remove stored token"],
+                  ["vpush username/project", "Downloads a project to your computer (clone)"],
+                  ["vpush push", "Uploads your local files to VPush"],
+                  ["vpush pull", "Downloads the latest files from VPush"],
+                  ["vpush status", "Shows which project you're connected to"],
+                  ["vpush server <url>", "Points the CLI to a different VPush server"],
+                  ["vpush help", "Shows all available commands"],
                 ].map(([cmd, desc]) => (
                   <tr key={cmd} className="border-b border-border/50 last:border-0">
                     <td className="px-4 py-3 font-mono text-sm text-primary">{cmd}</td>
@@ -197,10 +190,10 @@ export default function CliDocs() {
 
         <section className="mb-12">
           <h2 className="text-xl font-semibold mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-            .vpushignore
+            Ignoring Files
           </h2>
           <p className="text-sm text-muted-foreground mb-3">
-            Create a <code className="px-1 py-0.5 rounded bg-muted font-mono">.vpushignore</code> file to exclude files from pushing. Works like <code className="px-1 py-0.5 rounded bg-muted font-mono">.gitignore</code>.
+            Want to skip certain files when pushing? Create a file called <code className="px-1 py-0.5 rounded bg-muted font-mono">.vpushignore</code> in your project folder and list the files or folders you want to skip — one per line.
           </p>
           <div className="rounded-lg border border-border bg-[#0d1117] text-white font-mono text-sm p-4">
             <div className="text-white/40 mb-2"># .vpushignore</div>
@@ -215,16 +208,16 @@ export default function CliDocs() {
 
         <section>
           <h2 className="text-xl font-semibold mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-            Manual Install (No npm)
+            Don't Have npm?
           </h2>
           <div className="rounded-xl border border-border bg-card p-5 space-y-3">
             <p className="text-sm text-muted-foreground">
-              If you don't have npm, you can run the CLI directly with Node.js:
+              You can run the CLI directly with Node.js — no npm install needed:
             </p>
             <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
               <li>Install <a href="https://nodejs.org" className="text-primary hover:underline" target="_blank" rel="noopener">Node.js</a> (v16 or higher)</li>
-              <li>Download <code className="px-1 py-0.5 rounded bg-muted font-mono text-foreground">index.js</code> from the CLI package</li>
-              <li>Run with: <code className="px-1 py-0.5 rounded bg-muted font-mono text-foreground">node index.js &lt;command&gt;</code></li>
+              <li>Download <code className="px-1 py-0.5 rounded bg-muted font-mono text-foreground">index.js</code> from above</li>
+              <li>Run commands like: <code className="px-1 py-0.5 rounded bg-muted font-mono text-foreground">node index.js username/project</code></li>
             </ol>
           </div>
         </section>
