@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Terminal, ArrowRight, Loader2, Check, X, AtSign, User, Lock, Mail } from "lucide-react";
+import { Terminal, ArrowRight, Loader2, Check, X, User, Lock, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 function UsernameInput({
@@ -62,15 +62,12 @@ function UsernameInput({
         Username
       </Label>
       <div className="relative">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-mono">
-          vpush.tech/
-        </div>
         <Input
           id="username"
           data-testid="input-username"
           value={value}
           onChange={(e) => onChange(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
-          className="pl-[5.5rem] pr-9 font-mono text-sm"
+          className="pr-9 font-mono text-sm"
           placeholder="your-name"
           required
           minLength={3}

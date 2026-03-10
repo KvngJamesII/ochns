@@ -9,6 +9,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   displayName: text("display_name"),
+  role: text("role").notNull().default("user"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -47,6 +48,24 @@ export const fileVersions = pgTable("file_versions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const announcements = pgTable("announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  authorId: varchar("author_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const contacts = pgTable("contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  subject: text("subject"),
+  message: text("message").notNull(),
+  read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   email: true,
@@ -70,6 +89,18 @@ export const insertFileSchema = createInsertSchema(files).pick({
   parentPath: true,
 });
 
+export const insertAnnouncementSchema = createInsertSchema(announcements).pick({
+  title: true,
+  content: true,
+});
+
+export const insertContactSchema = createInsertSchema(contacts).pick({
+  name: true,
+  email: true,
+  subject: true,
+  message: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -77,3 +108,7 @@ export type Project = typeof projects.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
 export type FileRecord = typeof files.$inferSelect;
 export type FileVersion = typeof fileVersions.$inferSelect;
+export type Announcement = typeof announcements.$inferSelect;
+export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
+export type Contact = typeof contacts.$inferSelect;
+export type InsertContact = z.infer<typeof insertContactSchema>;

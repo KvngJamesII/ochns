@@ -6,6 +6,7 @@ interface AuthUser {
   id: string;
   username: string;
   displayName: string | null;
+  role: string;
 }
 
 export function useAuth() {

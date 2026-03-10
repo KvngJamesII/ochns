@@ -1,7 +1,7 @@
 import { db } from "./db";
-import { users, projects, files, fileVersions } from "@shared/schema";
-import type { User, InsertUser, Project, InsertProject, FileRecord, InsertFile, FileVersion } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { users, projects, files, fileVersions, announcements, contacts } from "@shared/schema";
+import type { User, InsertUser, Project, InsertProject, FileRecord, InsertFile, FileVersion, Announcement, InsertAnnouncement, Contact, InsertContact } from "@shared/schema";
+import { eq, and, desc, count, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { hashPassword } from "./auth";
 
@@ -9,6 +9,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getAllUsers(): Promise<User[]>;
 
   createProject(userId: string, project: InsertProject): Promise<Project>;
   getProjectsByUser(userId: string): Promise<Project[]>;
@@ -27,6 +28,17 @@ export interface IStorage {
 
   createFileVersion(fileId: string, content: string | null, size: number): Promise<FileVersion>;
   getFileVersions(fileId: string): Promise<FileVersion[]>;
+
+  getAdminStats(): Promise<{ users: number; projects: number; files: number; contacts: number; unreadContacts: number }>;
+
+  getAllContacts(): Promise<Contact[]>;
+  createContact(data: InsertContact): Promise<Contact>;
+  markContactRead(id: string): Promise<void>;
+  deleteContact(id: string): Promise<void>;
+
+  getAllAnnouncements(): Promise<Announcement[]>;
+  createAnnouncement(authorId: string, data: InsertAnnouncement): Promise<Announcement>;
+  deleteAnnouncement(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -49,6 +61,10 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users).orderBy(desc(users.createdAt));
   }
 
   async createProject(userId: string, project: InsertProject): Promise<Project> {
@@ -161,6 +177,51 @@ export class DatabaseStorage implements IStorage {
       .from(fileVersions)
       .where(eq(fileVersions.fileId, fileId))
       .orderBy(desc(fileVersions.version));
+  }
+
+  async getAdminStats() {
+    const [userCount] = await db.select({ value: count() }).from(users);
+    const [projectCount] = await db.select({ value: count() }).from(projects);
+    const [fileCount] = await db.select({ value: count() }).from(files);
+    const [contactCount] = await db.select({ value: count() }).from(contacts);
+    const [unreadCount] = await db.select({ value: count() }).from(contacts).where(eq(contacts.read, false));
+    return {
+      users: userCount.value,
+      projects: projectCount.value,
+      files: fileCount.value,
+      contacts: contactCount.value,
+      unreadContacts: unreadCount.value,
+    };
+  }
+
+  async getAllContacts(): Promise<Contact[]> {
+    return db.select().from(contacts).orderBy(desc(contacts.createdAt));
+  }
+
+  async createContact(data: InsertContact): Promise<Contact> {
+    const [created] = await db.insert(contacts).values(data).returning();
+    return created;
+  }
+
+  async markContactRead(id: string): Promise<void> {
+    await db.update(contacts).set({ read: true }).where(eq(contacts.id, id));
+  }
+
+  async deleteContact(id: string): Promise<void> {
+    await db.delete(contacts).where(eq(contacts.id, id));
+  }
+
+  async getAllAnnouncements(): Promise<Announcement[]> {
+    return db.select().from(announcements).orderBy(desc(announcements.createdAt));
+  }
+
+  async createAnnouncement(authorId: string, data: InsertAnnouncement): Promise<Announcement> {
+    const [created] = await db.insert(announcements).values({ ...data, authorId }).returning();
+    return created;
+  }
+
+  async deleteAnnouncement(id: string): Promise<void> {
+    await db.delete(announcements).where(eq(announcements.id, id));
   }
 }
 

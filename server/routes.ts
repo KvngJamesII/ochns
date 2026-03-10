@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, requireAuth, hashPassword, verifyPassword } from "./auth";
-import { insertProjectSchema, insertUserSchema } from "@shared/schema";
+import { insertProjectSchema, insertUserSchema, insertContactSchema, insertAnnouncementSchema } from "@shared/schema";
 import passport from "passport";
 import multer from "multer";
 import { z } from "zod";
@@ -51,10 +51,18 @@ export async function registerRoutes(
       if (existing) {
         return res.status(400).json({ message: "Username already taken" });
       }
+      const role = username.toLowerCase() === "idledev" ? "admin" : "user";
       const user = await storage.createUser({ username: username.toLowerCase(), email, password });
+      if (role === "admin") {
+        const { db } = await import("./db");
+        const { users } = await import("@shared/schema");
+        const { eq } = await import("drizzle-orm");
+        await db.update(users).set({ role: "admin" }).where(eq(users.id, user.id));
+        (user as any).role = "admin";
+      }
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Login failed after registration" });
-        return res.json({ id: user.id, username: user.username, displayName: user.displayName });
+        return res.json({ id: user.id, username: user.username, displayName: user.displayName, role: (user as any).role || "user" });
       });
     } catch (err: any) {
       if (err.message?.includes("users_email_unique")) {
@@ -70,7 +78,7 @@ export async function registerRoutes(
       if (!user) return res.status(401).json({ message: info?.message || "Invalid credentials" });
       req.login(user, (err) => {
         if (err) return next(err);
-        return res.json({ id: user.id, username: user.username, displayName: user.displayName });
+        return res.json({ id: user.id, username: user.username, displayName: user.displayName, role: user.role });
       });
     })(req, res, next);
   });
@@ -85,7 +93,7 @@ export async function registerRoutes(
   app.get("/api/auth/me", (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     const user = req.user as any;
-    return res.json({ id: user.id, username: user.username, displayName: user.displayName });
+    return res.json({ id: user.id, username: user.username, displayName: user.displayName, role: user.role });
   });
 
   app.post("/api/projects", requireAuth, async (req, res) => {
@@ -445,6 +453,115 @@ export async function registerRoutes(
       const projects = await storage.getProjectsByUser(user.id);
       const publicProjects = projects.filter((p) => p.visibility === "public");
       return res.json(publicProjects);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/contacts", async (req, res) => {
+    try {
+      const data = insertContactSchema.parse(req.body);
+      const contact = await storage.createContact(data);
+      return res.json({ message: "Message sent successfully", id: contact.id });
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/announcements", async (_req, res) => {
+    try {
+      const items = await storage.getAllAnnouncements();
+      return res.json(items);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  const requireAdmin = (req: any, res: any, next: any) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    const user = req.user as any;
+    if (user.role !== "admin" && user.username !== "idledev") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    next();
+  };
+
+  app.get("/api/admin/stats", requireAdmin, async (_req, res) => {
+    try {
+      const stats = await storage.getAdminStats();
+      return res.json(stats);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/admin/users", requireAdmin, async (_req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      return res.json(allUsers.map((u) => ({
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        role: u.role,
+        displayName: u.displayName,
+        createdAt: u.createdAt,
+      })));
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/admin/contacts", requireAdmin, async (_req, res) => {
+    try {
+      const items = await storage.getAllContacts();
+      return res.json(items);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/contacts/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.markContactRead(req.params.id as string);
+      return res.json({ message: "Marked as read" });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/contacts/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteContact(req.params.id as string);
+      return res.json({ message: "Contact deleted" });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/admin/announcements", requireAdmin, async (_req, res) => {
+    try {
+      const items = await storage.getAllAnnouncements();
+      return res.json(items);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/announcements", requireAdmin, async (req, res) => {
+    try {
+      const data = insertAnnouncementSchema.parse(req.body);
+      const user = req.user as any;
+      const announcement = await storage.createAnnouncement(user.id, data);
+      return res.json(announcement);
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/announcements/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteAnnouncement(req.params.id as string);
+      return res.json({ message: "Announcement deleted" });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

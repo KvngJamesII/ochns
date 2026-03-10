@@ -1,13 +1,10 @@
 import { Link } from "wouter";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Terminal,
-  Zap,
   ArrowRight,
   Check,
-  ArrowUpRight,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
@@ -95,10 +92,13 @@ export default function Landing() {
             variants={{ visible: { transition: { staggerChildren: 0.12 } } }}
           >
             <motion.div variants={fadeUp} transition={{ duration: 0.5 }}>
-              <Badge variant="secondary" className="mb-6 px-3 py-1 text-xs font-medium" data-testid="badge-beta">
-                <Zap className="w-3 h-3 mr-1.5" />
-                Now in Beta
-              </Badge>
+              <div className="inline-flex items-center gap-2 mb-6 px-4 py-1.5 rounded-full border border-primary/20 bg-primary/5 backdrop-blur-sm" data-testid="badge-beta">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                </span>
+                <span className="text-xs font-medium text-primary tracking-wide">Beta — Free for early adopters</span>
+              </div>
             </motion.div>
 
             <motion.h1

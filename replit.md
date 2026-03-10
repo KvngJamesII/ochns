@@ -8,6 +8,7 @@ VPush is a web platform for pushing and pulling files between VPS servers and ho
 - **Backend**: Express.js, PostgreSQL with Drizzle ORM
 - **Auth**: Passport.js with local strategy, session-based
 - **Fonts**: Inter (sans), JetBrains Mono (mono), Space Grotesk (headings)
+- **Theme**: Dark/light mode toggle with localStorage persistence, class-based (.dark)
 
 ## Project Structure
 ```
@@ -18,45 +19,57 @@ client/src/
     dashboard.tsx        - User project dashboard
     project-view.tsx     - File manager for a project
     project-settings.tsx - Project settings page
+    admin.tsx            - Admin panel (stats, users, contacts, announcements)
     terms.tsx            - Terms of Service page
-    contact.tsx          - Contact Us page
+    contact.tsx          - Contact Us page (posts to /api/contacts)
     not-found.tsx        - 404 page
   components/
-    header.tsx           - Navigation header
+    header.tsx           - Navigation header with theme toggle
+    theme-provider.tsx   - Dark/light mode context provider
   hooks/
-    use-auth.ts          - Authentication hook
+    use-auth.ts          - Authentication hook (includes role)
 
 server/
   index.ts     - Express app setup
-  routes.ts    - All API routes
+  routes.ts    - All API routes (including admin routes)
   storage.ts   - Database storage layer (PostgreSQL)
   auth.ts      - Passport.js auth setup
   db.ts        - Database connection
 
 shared/
-  schema.ts    - Drizzle schemas (users, projects, files, fileVersions)
+  schema.ts    - Drizzle schemas (users, projects, files, fileVersions, announcements, contacts)
 ```
 
 ## Database Tables
-- **users**: id, username, email, password, displayName, createdAt
+- **users**: id, username, email, password, displayName, role (default "user"), createdAt
 - **projects**: id, projectId, name, description, userId, visibility, authPin, createdAt, updatedAt
 - **files**: id, projectId, name, path, isDirectory, content, size, mimeType, parentPath, createdAt, updatedAt
 - **file_versions**: id, fileId, content, size, version, createdAt
+- **announcements**: id, title, content, authorId, createdAt
+- **contacts**: id, name, email, subject, message, read, createdAt
 
 ## Key Features
 - User authentication (signup with email/username/password/confirm/terms, login)
-- Live username availability checker (GET /api/auth/check-username/:username)
+- Live username availability checker
+- Dark/light mode toggle with system preference detection
 - Project creation (public/private with Auth PIN)
 - File manager (create folders, upload, rename, delete, download)
 - In-browser file editor
 - File version history with restore
+- Contact form (saves to DB)
+- Admin panel for "idledev" user (stats, users, contacts, announcements)
 - Responsive design (mobile + desktop)
-- Terms of Service and Contact pages
+
+## Admin
+- Admin user: "idledev" (auto-assigned admin role on registration)
+- Admin panel at /admin
+- Features: overview stats, user list, contact message management, announcement publishing
+- Access: requireAdmin middleware checks role === "admin" OR username === "idledev"
 
 ## API Endpoints
 - GET /api/auth/check-username/:username
 - POST /api/auth/register (username, email, password), /api/auth/login, /api/auth/logout
-- GET /api/auth/me
+- GET /api/auth/me (includes role)
 - GET/POST /api/projects
 - GET/PATCH/DELETE /api/projects/:projectId
 - POST /api/projects/:projectId/generate-pin
@@ -65,6 +78,12 @@ shared/
 - GET/PATCH/DELETE /api/files/:fileId
 - GET /api/files/:fileId/versions
 - POST /api/files/:fileId/restore/:versionId
+- POST /api/contacts
+- GET /api/announcements
+- GET /api/admin/stats, /api/admin/users, /api/admin/contacts, /api/admin/announcements
+- POST /api/admin/announcements
+- PATCH /api/admin/contacts/:id
+- DELETE /api/admin/contacts/:id, /api/admin/announcements/:id
 
 ## API Signature
 `apiRequest(method, url, data)` — NOT `(url, options)`
@@ -73,6 +92,7 @@ shared/
 - / - Landing page
 - /auth?mode=login|register - Auth page (register is default)
 - /dashboard - User dashboard
+- /admin - Admin panel (idledev only)
 - /terms - Terms of Service
 - /contact - Contact Us
 - /:username/:projectId - Project file manager
