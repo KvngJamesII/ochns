@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { users, projects, files, fileVersions, announcements, contacts } from "@shared/schema";
-import type { User, InsertUser, Project, InsertProject, FileRecord, InsertFile, FileVersion, Announcement, InsertAnnouncement, Contact, InsertContact } from "@shared/schema";
+import { users, projects, files, fileVersions, announcements, contacts, notifications } from "@shared/schema";
+import type { User, InsertUser, Project, InsertProject, FileRecord, InsertFile, FileVersion, Announcement, InsertAnnouncement, Contact, InsertContact, Notification } from "@shared/schema";
 import { eq, and, desc, count, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { hashPassword } from "./auth";
@@ -39,6 +39,13 @@ export interface IStorage {
   getAllAnnouncements(): Promise<Announcement[]>;
   createAnnouncement(authorId: string, data: InsertAnnouncement): Promise<Announcement>;
   deleteAnnouncement(id: string): Promise<void>;
+
+  getNotificationsByUser(userId: string): Promise<Notification[]>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
+  createNotification(userId: string, title: string, message: string, type?: string): Promise<Notification>;
+  markNotificationRead(id: string, userId: string): Promise<void>;
+  markAllNotificationsRead(userId: string): Promise<void>;
+  sendNotificationToAll(title: string, message: string, type?: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -222,6 +229,35 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAnnouncement(id: string): Promise<void> {
     await db.delete(announcements).where(eq(announcements.id, id));
+  }
+
+  async getNotificationsByUser(userId: string): Promise<Notification[]> {
+    return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const [result] = await db.select({ value: count() }).from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
+    return result.value;
+  }
+
+  async createNotification(userId: string, title: string, message: string, type: string = "system"): Promise<Notification> {
+    const [created] = await db.insert(notifications).values({ userId, title, message, type }).returning();
+    return created;
+  }
+
+  async markNotificationRead(id: string, userId: string): Promise<void> {
+    await db.update(notifications).set({ read: true }).where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await db.update(notifications).set({ read: true }).where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
+  }
+
+  async sendNotificationToAll(title: string, message: string, type: string = "admin"): Promise<void> {
+    const allUsers = await db.select({ id: users.id }).from(users);
+    for (const u of allUsers) {
+      await db.insert(notifications).values({ userId: u.id, title, message, type });
+    }
   }
 }
 

@@ -32,6 +32,8 @@ import {
   ArrowRight,
   Loader2,
   Search,
+  Terminal,
+  Copy,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -82,23 +84,55 @@ export default function Dashboard() {
       <Header />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
-            <h1
-              className="text-2xl font-bold tracking-tight"
-              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-              data-testid="text-dashboard-title"
-            >
-              Your Projects
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage your file repositories and deployments
-            </p>
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+            <div>
+              <p className="text-sm text-muted-foreground mb-1" data-testid="text-greeting">
+                Welcome back, <span className="text-foreground font-medium">{user?.username}</span>
+              </p>
+              <h1
+                className="text-2xl font-bold tracking-tight"
+                style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                data-testid="text-dashboard-title"
+              >
+                Your Projects
+              </h1>
+            </div>
+            <Button onClick={() => setShowCreate(true)} className="gap-2" data-testid="button-new-project">
+              <Plus className="w-4 h-4" />
+              New Project
+            </Button>
           </div>
-          <Button onClick={() => setShowCreate(true)} className="gap-2" data-testid="button-new-project">
-            <Plus className="w-4 h-4" />
-            New Project
-          </Button>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+            <div className="rounded-xl border border-border bg-card p-4" data-testid="stat-total-projects">
+              <div className="flex items-center gap-2 mb-2">
+                <FolderOpen className="w-4 h-4 text-primary" />
+                <span className="text-xs text-muted-foreground font-medium">Projects</span>
+              </div>
+              <div className="text-xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                {projects?.length ?? 0}
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4" data-testid="stat-public-projects">
+              <div className="flex items-center gap-2 mb-2">
+                <Globe className="w-4 h-4 text-emerald-500" />
+                <span className="text-xs text-muted-foreground font-medium">Public</span>
+              </div>
+              <div className="text-xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                {projects?.filter((p) => p.visibility === "public").length ?? 0}
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4 col-span-2 sm:col-span-1" data-testid="stat-private-projects">
+              <div className="flex items-center gap-2 mb-2">
+                <Lock className="w-4 h-4 text-amber-500" />
+                <span className="text-xs text-muted-foreground font-medium">Private</span>
+              </div>
+              <div className="text-xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                {projects?.filter((p) => p.visibility === "private").length ?? 0}
+              </div>
+            </div>
+          </div>
         </div>
 
         {(projects?.length ?? 0) > 0 && (

@@ -23,10 +23,12 @@ import {
   Shield,
   CheckCircle2,
   Circle,
+  Bell,
+  Send,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-type AdminTab = "overview" | "users" | "contacts" | "announcements";
+type AdminTab = "overview" | "users" | "contacts" | "announcements" | "notifications";
 
 interface AdminStats {
   users: number;
@@ -324,6 +326,85 @@ function AnnouncementsTab() {
   );
 }
 
+function NotificationsTab() {
+  const [notifTitle, setNotifTitle] = useState("");
+  const [notifMessage, setNotifMessage] = useState("");
+  const [targetUserId, setTargetUserId] = useState("");
+  const { data: users } = useQuery<AdminUser[]>({ queryKey: ["/api/admin/users"] });
+  const { toast } = useToast();
+
+  const sendMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/admin/notifications", {
+        title: notifTitle,
+        message: notifMessage,
+        ...(targetUserId ? { userId: targetUserId } : {}),
+      });
+    },
+    onSuccess: () => {
+      setNotifTitle("");
+      setNotifMessage("");
+      setTargetUserId("");
+      toast({ title: "Notification sent" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <div>
+      <h2 className="text-lg font-semibold mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Send Notification</h2>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Recipient</label>
+            <select
+              value={targetUserId}
+              onChange={(e) => setTargetUserId(e.target.value)}
+              className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+              data-testid="select-notif-target"
+            >
+              <option value="">All Users</option>
+              {users?.map((u) => (
+                <option key={u.id} value={u.id}>{u.username} ({u.email})</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Title</label>
+            <Input
+              placeholder="Notification title"
+              value={notifTitle}
+              onChange={(e) => setNotifTitle(e.target.value)}
+              data-testid="input-notif-title"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Message</label>
+            <Textarea
+              placeholder="Notification message..."
+              value={notifMessage}
+              onChange={(e) => setNotifMessage(e.target.value)}
+              rows={3}
+              data-testid="input-notif-message"
+            />
+          </div>
+          <Button
+            onClick={() => sendMutation.mutate()}
+            disabled={!notifTitle.trim() || !notifMessage.trim() || sendMutation.isPending}
+            className="gap-2"
+            data-testid="button-send-notification"
+          >
+            {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Send Notification
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -354,6 +435,7 @@ export default function Admin() {
     { id: "users", label: "Users", icon: Users },
     { id: "contacts", label: "Contacts", icon: MessageSquare, badge: stats?.unreadContacts },
     { id: "announcements", label: "Announcements", icon: Megaphone },
+    { id: "notifications", label: "Notifications", icon: Bell },
   ];
 
   return (
@@ -406,6 +488,7 @@ export default function Admin() {
             {tab === "users" && <UsersTab />}
             {tab === "contacts" && <ContactsTab />}
             {tab === "announcements" && <AnnouncementsTab />}
+            {tab === "notifications" && <NotificationsTab />}
           </div>
         </div>
       </main>

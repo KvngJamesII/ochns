@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Terminal, ArrowRight, Loader2, Check, X, User, Lock, Mail } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
+import { Terminal, ArrowRight, Loader2, Check, X, User, Lock, Mail, Rocket } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 function UsernameInput({
@@ -99,6 +103,7 @@ export default function AuthPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState("idle");
+  const [showWelcome, setShowWelcome] = useState(false);
   const { login, register, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -109,7 +114,7 @@ export default function AuthPage() {
     }
   }, [urlMode]);
 
-  if (isAuthenticated) {
+  if (isAuthenticated && !showWelcome) {
     window.location.href = "/dashboard";
     return null;
   }
@@ -129,10 +134,11 @@ export default function AuthPage() {
     try {
       if (mode === "login") {
         await login.mutateAsync({ username, password });
+        setLocation("/dashboard");
       } else {
         await register.mutateAsync({ username, email, password });
+        setShowWelcome(true);
       }
-      setLocation("/dashboard");
     } catch (err: any) {
       toast({
         title: "Error",
@@ -364,6 +370,38 @@ export default function AuthPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={showWelcome} onOpenChange={(open) => {
+        if (!open) {
+          setShowWelcome(false);
+          window.location.href = "/";
+        }
+      }}>
+        <DialogContent className="sm:max-w-md text-center" data-testid="modal-welcome">
+          <div className="flex flex-col items-center py-4">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+              <Rocket className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-xl font-bold mb-2">Welcome to VPush!</h2>
+            <p className="text-muted-foreground text-sm mb-6 max-w-xs">
+              Your account is ready. Start deploying files to your VPS servers in seconds with our CLI tool.
+            </p>
+            <div className="bg-muted/50 rounded-lg p-3 mb-6 w-full text-left font-mono text-sm">
+              <span className="text-muted-foreground">$</span> npm install -g vpush
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => {
+                setShowWelcome(false);
+                window.location.href = "/";
+              }}
+              data-testid="button-welcome-continue"
+            >
+              Get Started
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

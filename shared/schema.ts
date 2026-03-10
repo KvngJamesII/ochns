@@ -89,6 +89,16 @@ export const insertFileSchema = createInsertSchema(files).pick({
   parentPath: true,
 });
 
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull().default("system"),
+  read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertAnnouncementSchema = createInsertSchema(announcements).pick({
   title: true,
   content: true,
@@ -112,3 +122,4 @@ export type Announcement = typeof announcements.$inferSelect;
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type Contact = typeof contacts.$inferSelect;
 export type InsertContact = z.infer<typeof insertContactSchema>;
+export type Notification = typeof notifications.$inferSelect;

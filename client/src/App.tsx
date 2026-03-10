@@ -12,6 +12,7 @@ import ProjectSettings from "@/pages/project-settings";
 import Terms from "@/pages/terms";
 import Contact from "@/pages/contact";
 import Admin from "@/pages/admin";
+import CliDocs from "@/pages/cli-docs";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/terms" component={Terms} />
       <Route path="/contact" component={Contact} />
       <Route path="/admin" component={Admin} />
+      <Route path="/docs/cli" component={CliDocs} />
       <Route path="/:username/:projectId/settings" component={ProjectSettings} />
       <Route path="/:username/:projectId" component={ProjectView} />
       <Route component={NotFound} />

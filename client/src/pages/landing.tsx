@@ -120,7 +120,7 @@ export default function Landing() {
               data-testid="text-hero-description"
             >
               Push, pull, and sync files between your server and cloud storage.
-              Like Git, but built for simple file deployment.
+              Push, pull, and manage your files from the terminal.
             </motion.p>
 
             <motion.div
@@ -205,7 +205,7 @@ export default function Landing() {
             <div>
               <p className="text-sm font-medium text-primary tracking-wider uppercase mb-3">For your VPS</p>
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-6" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                Built for developers who ship on bare metal
+                Simple file deployment for any server
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-8">
                 Not everyone uses Vercel or Netlify. If you deploy to DigitalOcean droplets, Hetzner boxes, or any Linux server, VPush gives you the deployment workflow you've been missing.
@@ -396,7 +396,7 @@ export default function Landing() {
 
           <div className="mt-10 pt-6 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              VPush. Built for developers who deploy to VPS.
+              VPush. Deploy files to any server, effortlessly.
             </p>
             <div className="flex items-center gap-4">
               <Link href="/terms" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Terms</Link>

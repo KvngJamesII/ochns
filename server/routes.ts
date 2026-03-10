@@ -7,6 +7,8 @@ import passport from "passport";
 import multer from "multer";
 import { z } from "zod";
 import { nanoid } from "nanoid";
+import fs from "fs";
+import path from "path";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -15,6 +17,17 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   setupAuth(app);
+
+  app.get("/cli/index.js", (req, res) => {
+    const cliPath = path.join(process.cwd(), "cli", "index.js");
+    if (fs.existsSync(cliPath)) {
+      res.setHeader("Content-Disposition", 'attachment; filename="vpush.js"');
+      res.setHeader("Content-Type", "application/javascript");
+      res.sendFile(cliPath);
+    } else {
+      res.status(404).json({ message: "CLI not found" });
+    }
+  });
 
   app.get("/api/auth/check-username/:username", async (req, res) => {
     try {
@@ -60,6 +73,8 @@ export async function registerRoutes(
         await db.update(users).set({ role: "admin" }).where(eq(users.id, user.id));
         (user as any).role = "admin";
       }
+      await storage.createNotification(user.id, "Welcome to VPush!", "Your account has been created. Start by creating your first project.", "system");
+
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Login failed after registration" });
         return res.json({ id: user.id, username: user.username, displayName: user.displayName, role: (user as any).role || "user" });
@@ -458,6 +473,46 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/notifications", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const items = await storage.getNotificationsByUser(user.id);
+      return res.json(items);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/notifications/unread-count", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const count = await storage.getUnreadNotificationCount(user.id);
+      return res.json({ count });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      await storage.markNotificationRead(req.params.id as string, user.id);
+      return res.json({ message: "Marked as read" });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/notifications/read-all", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      await storage.markAllNotificationsRead(user.id);
+      return res.json({ message: "All marked as read" });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/contacts", async (req, res) => {
     try {
       const data = insertContactSchema.parse(req.body);
@@ -555,6 +610,26 @@ export async function registerRoutes(
       return res.json(announcement);
     } catch (err: any) {
       return res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/notifications", requireAdmin, async (req, res) => {
+    try {
+      const { title, message, userId } = req.body;
+      if (!title?.trim() || !message?.trim()) return res.status(400).json({ message: "Title and message required" });
+      if (title.length > 200) return res.status(400).json({ message: "Title too long (max 200 characters)" });
+      if (message.length > 2000) return res.status(400).json({ message: "Message too long (max 2000 characters)" });
+      if (userId) {
+        const targetUser = await storage.getUser(userId);
+        if (!targetUser) return res.status(404).json({ message: "User not found" });
+        const notification = await storage.createNotification(userId, title.trim(), message.trim(), "admin");
+        return res.json(notification);
+      } else {
+        await storage.sendNotificationToAll(title.trim(), message.trim(), "admin");
+        return res.json({ message: "Notification sent to all users" });
+      }
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
     }
   });
 

@@ -1,0 +1,11 @@
+{
+  "name": "vpush-cli",
+  "version": "1.0.0",
+  "description": "CLI tool for VPush — deploy files to your VPS servers",
+  "main": "index.js",
+  "bin": {
+    "vpush": "./index.js"
+  },
+  "keywords": ["vpush", "deploy", "vps", "cli", "file-sync"],
+  "license": "MIT"
+}

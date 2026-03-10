@@ -29,6 +29,10 @@ client/src/
   hooks/
     use-auth.ts          - Authentication hook (includes role)
 
+cli/
+  index.js             - VPush CLI tool (standalone Node.js script)
+  package.json         - CLI package metadata
+
 server/
   index.ts     - Express app setup
   routes.ts    - All API routes (including admin routes)
@@ -37,7 +41,7 @@ server/
   db.ts        - Database connection
 
 shared/
-  schema.ts    - Drizzle schemas (users, projects, files, fileVersions, announcements, contacts)
+  schema.ts    - Drizzle schemas (users, projects, files, fileVersions, announcements, contacts, notifications)
 ```
 
 ## Database Tables
@@ -47,6 +51,7 @@ shared/
 - **file_versions**: id, fileId, content, size, version, createdAt
 - **announcements**: id, title, content, authorId, createdAt
 - **contacts**: id, name, email, subject, message, read, createdAt
+- **notifications**: id, userId, title, message, type (system/admin), read, createdAt
 
 ## Key Features
 - User authentication (signup with email/username/password/confirm/terms, login)
@@ -57,13 +62,16 @@ shared/
 - In-browser file editor
 - File version history with restore
 - Contact form (saves to DB)
-- Admin panel for "idledev" user (stats, users, contacts, announcements)
+- Admin panel for "idledev" user (stats, users, contacts, announcements, send notifications)
+- Notification bell in header with unread badge, mark-as-read, mark-all-read
+- Welcome modal after signup → redirects to homepage
+- Auto welcome notification on registration
 - Responsive design (mobile + desktop)
 
 ## Admin
 - Admin user: "idledev" (auto-assigned admin role on registration)
 - Admin panel at /admin
-- Features: overview stats, user list, contact message management, announcement publishing
+- Features: overview stats, user list, contact message management, announcement publishing, send notifications
 - Access: requireAdmin middleware checks role === "admin" OR username === "idledev"
 
 ## API Endpoints
@@ -84,6 +92,9 @@ shared/
 - POST /api/admin/announcements
 - PATCH /api/admin/contacts/:id
 - DELETE /api/admin/contacts/:id, /api/admin/announcements/:id
+- GET /api/notifications, GET /api/notifications/unread-count
+- PATCH /api/notifications/:id/read, POST /api/notifications/read-all
+- POST /api/admin/notifications (title, message, optional userId)
 
 ## API Signature
 `apiRequest(method, url, data)` — NOT `(url, options)`

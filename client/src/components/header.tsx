@@ -1,6 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/components/theme-provider";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,8 +11,133 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Terminal, LogOut, LayoutDashboard, ChevronDown, Sun, Moon, Shield } from "lucide-react";
+import { Terminal, LogOut, LayoutDashboard, ChevronDown, Sun, Moon, Shield, Bell, Check, Megaphone, Info } from "lucide-react";
+
+interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  createdAt: string;
+}
+
+function NotificationBell() {
+  const { data: countData } = useQuery<{ count: number }>({
+    queryKey: ["/api/notifications/unread-count"],
+    refetchInterval: 30000,
+  });
+
+  const { data: notifications, refetch: refetchNotifs } = useQuery<NotificationItem[]>({
+    queryKey: ["/api/notifications"],
+    refetchInterval: 30000,
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("PATCH", `/api/notifications/${id}/read`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+    },
+    onError: () => {},
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/notifications/read-all");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+    },
+    onError: () => {},
+  });
+
+  const unreadCount = countData?.count || 0;
+  const recentNotifs = notifications?.slice(0, 8) || [];
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="w-9 h-9 relative" data-testid="button-notifications">
+          <Bell className="w-4 h-4" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center min-w-[18px] h-[18px]" data-testid="badge-notification-count">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0" data-testid="popover-notifications">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h3 className="text-sm font-semibold">Notifications</h3>
+          {unreadCount > 0 && (
+            <button
+              onClick={() => markAllReadMutation.mutate()}
+              className="text-xs text-primary hover:underline"
+              data-testid="button-mark-all-read"
+            >
+              Mark all read
+            </button>
+          )}
+        </div>
+        <div className="max-h-80 overflow-y-auto">
+          {recentNotifs.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              No notifications
+            </div>
+          ) : (
+            recentNotifs.map((n) => (
+              <div
+                key={n.id}
+                className={`px-4 py-3 border-b border-border/50 last:border-0 transition-colors ${
+                  n.read ? "opacity-60" : "bg-primary/[0.03]"
+                }`}
+                data-testid={`notification-${n.id}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                    n.type === "admin" ? "bg-primary/10" : "bg-muted"
+                  }`}>
+                    {n.type === "admin" ? (
+                      <Megaphone className="w-3.5 h-3.5 text-primary" />
+                    ) : (
+                      <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium leading-tight">{n.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{n.message}</p>
+                    <p className="text-[10px] text-muted-foreground/50 mt-1">
+                      {new Date(n.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  {!n.read && (
+                    <button
+                      onClick={() => markReadMutation.mutate(n.id)}
+                      className="flex-shrink-0 p-1 rounded hover:bg-muted transition-colors"
+                      data-testid={`button-read-notif-${n.id}`}
+                    >
+                      <Check className="w-3.5 h-3.5 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export function Header() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -54,7 +181,7 @@ export function Header() {
             )}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Button
               variant="ghost"
               size="icon"
@@ -68,6 +195,8 @@ export function Header() {
                 <Sun className="w-4 h-4" />
               )}
             </Button>
+
+            {isAuthenticated && <NotificationBell />}
 
             {isAuthenticated ? (
               <DropdownMenu>
