@@ -60,7 +60,7 @@ export default function ProjectSettings() {
   const { data: project, isLoading } = useQuery<any>({
     queryKey: ["/api/projects", projectId],
     queryFn: async () => {
-      const res = await fetch(`/api/projects/${projectId}`, { credentials: "include" });
+      const res = await fetch(`/api/projects/${projectId}?owner=${encodeURIComponent(username)}`, { credentials: "include" });
       if (!res.ok) throw new Error("Project not found");
       return res.json();
     },
@@ -79,7 +79,7 @@ export default function ProjectSettings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("PATCH", `/api/projects/${projectId}`, data);
+      const res = await apiRequest("PATCH", `/api/projects/${projectId}?owner=${encodeURIComponent(username)}`, data);
       return res.json();
     },
     onSuccess: () => {
@@ -88,13 +88,13 @@ export default function ProjectSettings() {
       toast({ title: "Settings saved" });
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Couldn't save settings", description: err.message, variant: "destructive" });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("DELETE", `/api/projects/${projectId}`);
+      await apiRequest("DELETE", `/api/projects/${projectId}?owner=${encodeURIComponent(username)}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
@@ -102,13 +102,13 @@ export default function ProjectSettings() {
       toast({ title: "Project deleted" });
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Couldn't delete project", description: err.message, variant: "destructive" });
     },
   });
 
   const generatePinMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/projects/${projectId}/generate-pin`);
+      const res = await apiRequest("POST", `/api/projects/${projectId}/generate-pin?owner=${encodeURIComponent(username)}`);
       return res.json();
     },
     onSuccess: (data: any) => {
@@ -116,7 +116,7 @@ export default function ProjectSettings() {
       toast({ title: "Auth PIN generated", description: `PIN: ${data.pin}` });
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Couldn't generate PIN", description: err.message, variant: "destructive" });
     },
   });
 

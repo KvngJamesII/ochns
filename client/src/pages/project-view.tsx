@@ -230,7 +230,7 @@ export default function ProjectView() {
   const { data: project, isLoading: projectLoading } = useQuery<any>({
     queryKey: ["/api/projects", projectId, authPin],
     queryFn: async () => {
-      const res = await fetch(`/api/projects/${projectId}`, {
+      const res = await fetch(`/api/projects/${projectId}?owner=${encodeURIComponent(username)}`, {
         credentials: "include",
         headers: authPin ? { "x-auth-pin": authPin } : {},
       });
@@ -243,7 +243,7 @@ export default function ProjectView() {
     queryKey: ["/api/projects", projectId, "files", currentPath],
     queryFn: async () => {
       const res = await fetch(
-        `/api/projects/${projectId}/files?path=${encodeURIComponent(currentPath)}`,
+        `/api/projects/${projectId}/files?path=${encodeURIComponent(currentPath)}&owner=${encodeURIComponent(username)}`,
         {
           credentials: "include",
           headers: authPin ? { "x-auth-pin": authPin } : {},
@@ -259,7 +259,7 @@ export default function ProjectView() {
 
   const createFolderMutation = useMutation({
     mutationFn: async (name: string) => {
-      const res = await apiRequest("POST", `/api/projects/${projectId}/files`, {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/files?owner=${encodeURIComponent(username)}`, {
         name,
         parentPath: currentPath,
         isDirectory: true,
@@ -272,13 +272,13 @@ export default function ProjectView() {
       setNewFolderName("");
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Couldn't create folder", description: err.message, variant: "destructive" });
     },
   });
 
   const createFileMutation = useMutation({
     mutationFn: async (name: string) => {
-      const res = await apiRequest("POST", `/api/projects/${projectId}/files`, {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/files?owner=${encodeURIComponent(username)}`, {
         name,
         parentPath: currentPath,
         isDirectory: false,
@@ -292,7 +292,7 @@ export default function ProjectView() {
       setNewFileName("");
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Couldn't create file", description: err.message, variant: "destructive" });
     },
   });
 
@@ -301,12 +301,15 @@ export default function ProjectView() {
       const formData = new FormData();
       formData.append("parentPath", currentPath);
       Array.from(files).forEach((f) => formData.append("files", f));
-      const res = await fetch(`/api/projects/${projectId}/upload`, {
+      const res = await fetch(`/api/projects/${projectId}/upload?owner=${encodeURIComponent(username)}`, {
         method: "POST",
         body: formData,
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.message || "Upload failed");
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -328,7 +331,7 @@ export default function ProjectView() {
       setShowRename(null);
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Rename failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -341,7 +344,7 @@ export default function ProjectView() {
       setShowDelete(null);
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -357,7 +360,7 @@ export default function ProjectView() {
       toast({ title: "File saved" });
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -404,13 +407,13 @@ export default function ProjectView() {
         credentials: "include",
         headers: authPin ? { "x-auth-pin": authPin } : {},
       });
-      if (!res.ok) throw new Error("Failed to load file");
+      if (!res.ok) throw new Error("Couldn't load file content");
       const data = await res.json();
       setViewingFile(data);
       setEditContent(data.content || "");
       setIsEditing(false);
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "File error", description: err.message, variant: "destructive" });
     }
   };
 

@@ -54,7 +54,7 @@ export default function Settings() {
       setTotpSecret(data.secret);
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "2FA setup failed", description: err.message, variant: "destructive" });
     },
   });
 

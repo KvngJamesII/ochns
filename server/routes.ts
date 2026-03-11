@@ -14,6 +14,23 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 
 const resetTokens = new Map<string, { userId: string; expiresAt: number }>();
 
+// Resolve a project by internal projectId OR by name + owner username
+async function resolveProject(identifier: string, ownerUsername?: string): Promise<import("@shared/schema").Project | undefined> {
+  // Try by internal projectId first (e.g. projXXXX)
+  let project = await storage.getProjectByProjectId(identifier);
+  if (project) return project;
+
+  // Fall back to name + owner lookup
+  if (ownerUsername) {
+    const owner = await storage.getUserByUsername(ownerUsername.toLowerCase());
+    if (owner) {
+      const userProjects = await storage.getProjectsByUser(owner.id);
+      return userProjects.find(p => p.name.toLowerCase() === identifier.toLowerCase());
+    }
+  }
+  return undefined;
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -273,7 +290,7 @@ export async function registerRoutes(
 
   app.get("/api/projects/:projectId", async (req, res) => {
     try {
-      const project = await storage.getProjectByProjectId(req.params.projectId);
+      const project = await resolveProject(req.params.projectId, req.query.owner as string | undefined);
       if (!project) return res.status(404).json({ message: "Project not found" });
 
       const owner = await storage.getUser(project.userId);
@@ -306,7 +323,7 @@ export async function registerRoutes(
 
   app.patch("/api/projects/:projectId", requireAuth, async (req, res) => {
     try {
-      const project = await storage.getProjectByProjectId(req.params.projectId);
+      const project = await resolveProject(req.params.projectId, req.query.owner as string | undefined);
       if (!project) return res.status(404).json({ message: "Project not found" });
       if (project.userId !== (req.user as any).id) return res.status(403).json({ message: "Forbidden" });
 
@@ -333,7 +350,7 @@ export async function registerRoutes(
 
   app.delete("/api/projects/:projectId", requireAuth, async (req, res) => {
     try {
-      const project = await storage.getProjectByProjectId(req.params.projectId);
+      const project = await resolveProject(req.params.projectId, req.query.owner as string | undefined);
       if (!project) return res.status(404).json({ message: "Project not found" });
       if (project.userId !== (req.user as any).id) return res.status(403).json({ message: "Forbidden" });
 
@@ -346,7 +363,7 @@ export async function registerRoutes(
 
   app.post("/api/projects/:projectId/generate-pin", requireAuth, async (req, res) => {
     try {
-      const project = await storage.getProjectByProjectId(req.params.projectId);
+      const project = await resolveProject(req.params.projectId, req.query.owner as string | undefined);
       if (!project) return res.status(404).json({ message: "Project not found" });
       if (project.userId !== (req.user as any).id) return res.status(403).json({ message: "Forbidden" });
 
@@ -360,7 +377,7 @@ export async function registerRoutes(
 
   app.get("/api/projects/:projectId/files", async (req, res) => {
     try {
-      const project = await storage.getProjectByProjectId(req.params.projectId);
+      const project = await resolveProject(req.params.projectId, req.query.owner as string | undefined);
       if (!project) return res.status(404).json({ message: "Project not found" });
 
       const isOwner = !!req.user && (req.user as any).id === project.userId;
@@ -381,7 +398,7 @@ export async function registerRoutes(
 
   app.post("/api/projects/:projectId/files", requireAuth, async (req, res) => {
     try {
-      const project = await storage.getProjectByProjectId(req.params.projectId);
+      const project = await resolveProject(req.params.projectId, req.query.owner as string | undefined);
       if (!project) return res.status(404).json({ message: "Project not found" });
       if (project.userId !== (req.user as any).id) return res.status(403).json({ message: "Forbidden" });
 
@@ -409,7 +426,7 @@ export async function registerRoutes(
 
   app.post("/api/projects/:projectId/upload", requireAuth, upload.array("files", 50), async (req, res) => {
     try {
-      const project = await storage.getProjectByProjectId(req.params.projectId);
+      const project = await resolveProject(req.params.projectId, req.query.owner as string | undefined);
       if (!project) return res.status(404).json({ message: "Project not found" });
       if (project.userId !== (req.user as any).id) return res.status(403).json({ message: "Forbidden" });
 
@@ -571,7 +588,7 @@ export async function registerRoutes(
 
   app.get("/api/projects/:projectId/download/:fileId", async (req, res) => {
     try {
-      const project = await storage.getProjectByProjectId(req.params.projectId);
+      const project = await resolveProject(req.params.projectId, req.query.owner as string | undefined);
       if (!project) return res.status(404).json({ message: "Project not found" });
 
       const file = await storage.getFileById(req.params.fileId);
@@ -641,7 +658,7 @@ export async function registerRoutes(
   // CLI: PIN-based upload (no login required, just valid PIN)
   app.post("/api/projects/:projectId/cli-upload", upload.array("files", 50), async (req, res) => {
     try {
-      const project = await storage.getProjectByProjectId(req.params.projectId);
+      const project = await resolveProject(req.params.projectId, req.query.owner as string | undefined);
       if (!project) return res.status(404).json({ message: "Project not found" });
 
       // Check auth: either logged-in owner, or valid PIN

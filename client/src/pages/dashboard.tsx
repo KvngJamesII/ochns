@@ -68,7 +68,7 @@ export default function Dashboard() {
       toast({ title: "Project created successfully" });
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Couldn't create project", description: err.message, variant: "destructive" });
     },
   });
 
@@ -190,7 +190,7 @@ export default function Dashboard() {
             {filteredProjects?.map((project) => (
               <Link
                 key={project.id}
-                href={`/${user?.username}/${project.projectId}`}
+                href={`/${user?.username}/${project.name}`}
               >
                 <div
                   className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-card/80 transition-all duration-200 p-5 cursor-pointer h-full"

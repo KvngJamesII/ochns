@@ -348,7 +348,7 @@ function NotificationsTab() {
       toast({ title: "Notification sent" });
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Couldn't send notification", description: err.message, variant: "destructive" });
     },
   });
 
