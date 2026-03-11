@@ -434,7 +434,7 @@ export async function registerRoutes(
       const uploadedFiles = req.files as Express.Multer.File[];
 
       if (!uploadedFiles || uploadedFiles.length === 0) {
-        console.error("Upload: no files received. Content-Type:", req.headers["content-type"]);
+        console.error("Upload: no files received. Content-Type:", req.headers["content-type"], "Content-Length:", req.headers["content-length"]);
         return res.status(400).json({ message: "No files received. Please select files and try again." });
       }
 
