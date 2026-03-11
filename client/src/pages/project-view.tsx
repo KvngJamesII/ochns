@@ -225,14 +225,15 @@ export default function ProjectView() {
   const projectId = params?.projectId || "";
   const username = params?.username || "";
 
-  const pinHeader = authPin ? { "x-auth-pin": authPin } : {};
+  // Build query string with owner and optional PIN
+  const pinParam = authPin ? `&pin=${encodeURIComponent(authPin)}` : "";
+  const ownerParam = `owner=${encodeURIComponent(username)}`;
 
   const { data: project, isLoading: projectLoading } = useQuery<any>({
     queryKey: ["/api/projects", projectId, authPin],
     queryFn: async () => {
-      const res = await fetch(`/api/projects/${projectId}?owner=${encodeURIComponent(username)}`, {
+      const res = await fetch(`/api/projects/${projectId}?${ownerParam}${pinParam}`, {
         credentials: "include",
-        headers: authPin ? { "x-auth-pin": authPin } : {},
         cache: "no-store",
       });
       if (!res.ok) throw new Error("Project not found");
@@ -241,13 +242,12 @@ export default function ProjectView() {
   });
 
   const { data: fileList, isLoading: filesLoading } = useQuery<FileRecord[]>({
-    queryKey: ["/api/projects", projectId, "files", currentPath],
+    queryKey: ["/api/projects", projectId, "files", currentPath, authPin],
     queryFn: async () => {
       const res = await fetch(
-        `/api/projects/${projectId}/files?path=${encodeURIComponent(currentPath)}&owner=${encodeURIComponent(username)}`,
+        `/api/projects/${projectId}/files?path=${encodeURIComponent(currentPath)}&${ownerParam}${pinParam}`,
         {
           credentials: "include",
-          headers: authPin ? { "x-auth-pin": authPin } : {},
           cache: "no-store",
         }
       );
@@ -303,17 +303,20 @@ export default function ProjectView() {
       const formData = new FormData();
       formData.append("parentPath", currentPath);
       Array.from(files).forEach((f) => formData.append("files", f));
-      const res = await fetch(`/api/projects/${projectId}/upload?owner=${encodeURIComponent(username)}`, {
+      const res = await fetch(`/api/projects/${projectId}/upload?${ownerParam}`, {
         method: "POST",
         body: formData,
         credentials: "include",
-        cache: "no-store",
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(data?.message || "Upload failed");
       }
-      return res.json();
+      const result = await res.json();
+      if (Array.isArray(result) && result.length === 0) {
+        throw new Error("No files were received by the server. Try a smaller file or different format.");
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "files"] });
@@ -407,9 +410,8 @@ export default function ProjectView() {
 
   const handleViewFile = async (file: FileRecord) => {
     try {
-      const res = await fetch(`/api/files/${file.id}`, {
+      const res = await fetch(`/api/files/${file.id}?${pinParam.replace("&", "")}`, {
         credentials: "include",
-        headers: authPin ? { "x-auth-pin": authPin } : {},
         cache: "no-store",
       });
       if (!res.ok) throw new Error("Couldn't load file content");

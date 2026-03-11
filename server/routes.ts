@@ -297,7 +297,7 @@ export async function registerRoutes(
       const isOwner = !!req.user && (req.user as any).id === project.userId;
 
       if (project.visibility === "private" && !isOwner) {
-        const pin = req.headers["x-auth-pin"] as string;
+        const pin = (req.query.pin as string) || (req.headers["x-auth-pin"] as string);
         if (!pin || pin !== project.authPin) {
           return res.json({
             id: project.id,
@@ -382,7 +382,7 @@ export async function registerRoutes(
 
       const isOwner = !!req.user && (req.user as any).id === project.userId;
       if (project.visibility === "private" && !isOwner) {
-        const pin = req.headers["x-auth-pin"] as string;
+        const pin = (req.query.pin as string) || (req.headers["x-auth-pin"] as string);
         if (!pin || pin !== project.authPin) {
           return res.status(403).json({ message: "Auth PIN required" });
         }
@@ -432,6 +432,12 @@ export async function registerRoutes(
 
       const parentPath = (req.body.parentPath as string) || "/";
       const uploadedFiles = req.files as Express.Multer.File[];
+
+      if (!uploadedFiles || uploadedFiles.length === 0) {
+        console.error("Upload: no files received. Content-Type:", req.headers["content-type"]);
+        return res.status(400).json({ message: "No files received. Please select files and try again." });
+      }
+
       const results: any[] = [];
 
       for (const file of uploadedFiles) {
@@ -476,7 +482,7 @@ export async function registerRoutes(
 
       const isOwner = !!req.user && (req.user as any).id === project.userId;
       if (project.visibility === "private" && !isOwner) {
-        const pin = req.headers["x-auth-pin"] as string;
+        const pin = (req.query.pin as string) || (req.headers["x-auth-pin"] as string);
         if (!pin || pin !== project.authPin) {
           return res.status(403).json({ message: "Auth PIN required" });
         }
@@ -548,7 +554,7 @@ export async function registerRoutes(
 
       const isOwner = !!req.user && (req.user as any).id === project.userId;
       if (project.visibility === "private" && !isOwner) {
-        const pin = req.headers["x-auth-pin"] as string;
+        const pin = (req.query.pin as string) || (req.headers["x-auth-pin"] as string);
         if (!pin || pin !== project.authPin) {
           return res.status(403).json({ message: "Auth PIN required" });
         }
@@ -598,7 +604,7 @@ export async function registerRoutes(
 
       const isOwner = !!req.user && (req.user as any).id === project.userId;
       if (project.visibility === "private" && !isOwner) {
-        const pin = req.headers["x-auth-pin"] as string;
+        const pin = (req.query.pin as string) || (req.headers["x-auth-pin"] as string);
         if (!pin || pin !== project.authPin) {
           return res.status(403).json({ message: "Auth PIN required" });
         }
@@ -664,13 +670,18 @@ export async function registerRoutes(
       // Check auth: either logged-in owner, or valid PIN
       const isOwner = !!req.user && (req.user as any).id === project.userId;
       if (!isOwner) {
-        const pin = req.headers["x-auth-pin"] as string;
+        const pin = (req.query.pin as string) || (req.headers["x-auth-pin"] as string);
         if (!project.authPin) return res.status(403).json({ message: "Project has no CLI PIN. Generate one in project settings." });
         if (!pin || pin !== project.authPin) return res.status(403).json({ message: "Invalid PIN" });
       }
 
       const parentPath = (req.body.parentPath as string) || "/";
       const uploadedFiles = req.files as Express.Multer.File[];
+
+      if (!uploadedFiles || uploadedFiles.length === 0) {
+        return res.status(400).json({ message: "No files received. Please select files and try again." });
+      }
+
       const results: any[] = [];
 
       for (const file of uploadedFiles) {
