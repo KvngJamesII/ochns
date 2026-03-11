@@ -581,7 +581,7 @@ export default function AuthPage() {
               Your account is ready. Start deploying files to your VPS servers in seconds with our CLI tool.
             </p>
             <div className="bg-muted/50 rounded-lg p-3 mb-6 w-full text-left font-mono text-sm">
-              <span className="text-muted-foreground">$</span> npm install -g vpush
+              <span className="text-muted-foreground">$</span> npm install -g vpush-cli
             </div>
             <Button
               className="w-full"

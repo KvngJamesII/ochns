@@ -1,24 +1,29 @@
 {
-  "name": "vpush",
-  "version": "2.0.0",
+  "name": "vpush-cli",
+  "version": "2.0.2",
   "description": "Push and pull files to your VPS servers. No Git, no SSH keys — just vpush.",
   "main": "index.js",
   "bin": {
-    "vpush": "./index.js"
+    "vpush": "index.js"
   },
-  "keywords": ["vpush", "deploy", "vps", "cli", "file-sync", "server", "upload", "download"],
+  "keywords": [
+    "vpush",
+    "deploy",
+    "vps",
+    "cli",
+    "file-sync",
+    "server",
+    "upload",
+    "download"
+  ],
   "author": "KvngJamesII",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/KvngJamesII/ochns.git",
-    "directory": "cli"
-  },
   "homepage": "https://vpush.tech",
   "engines": {
     "node": ">=16.0.0"
   },
   "files": [
-    "index.js"
+    "index.js",
+    "README.md"
   ]
 }

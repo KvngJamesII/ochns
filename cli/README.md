@@ -5,7 +5,7 @@ Push and pull files to your VPS servers. No Git, no SSH keys — just `vpush`.
 ## Install
 
 ```bash
-npm install -g vpush
+npm install -g vpush-cli
 ```
 
 ## Quick Start

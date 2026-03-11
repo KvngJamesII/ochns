@@ -414,7 +414,7 @@ export default function ProjectView() {
     }
   };
 
-  const projectUrl = `vpush.tech/${username}/${projectId}`;
+  const projectUrl = project ? `vpush.tech/${username}/${project.name}` : `vpush.tech/${username}/${projectId}`;
 
   const copyUrl = () => {
     navigator.clipboard.writeText(`https://${projectUrl}`);
