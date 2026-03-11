@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Link } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  ArrowLeft,
   Copy,
   User,
   Shield,
@@ -107,6 +109,12 @@ export default function Settings() {
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
         <div className="mb-8">
+          <Link href="/dashboard">
+            <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 mb-3">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back
+            </Button>
+          </Link>
           <h1
             className="text-2xl font-bold tracking-tight"
             style={{ fontFamily: "'Space Grotesk', sans-serif" }}
@@ -114,22 +122,22 @@ export default function Settings() {
           >
             Settings
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage your account</p>
+          <p className="text-base text-muted-foreground mt-1">Manage your account</p>
         </div>
 
         <div className="space-y-8">
           <section className="rounded-xl border border-border bg-card p-6">
             <div className="flex items-center gap-2 mb-4">
               <User className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-base font-semibold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Profile</h2>
+              <h2 className="text-lg font-semibold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Profile</h2>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <Label className="text-xs text-muted-foreground">Username</Label>
-                <p className="text-sm font-medium mt-0.5" data-testid="text-username">{user?.username}</p>
+                <Label className="text-sm text-muted-foreground">Username</Label>
+                <p className="text-base font-medium mt-0.5" data-testid="text-username">{user?.username}</p>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Role</Label>
+                <Label className="text-sm text-muted-foreground">Role</Label>
                 <div className="mt-0.5">
                   <Badge variant={user?.role === "admin" ? "default" : "secondary"} className="text-xs" data-testid="text-role">
                     {user?.role === "admin" && <Shield className="w-3 h-3 mr-1" />}
@@ -144,7 +152,7 @@ export default function Settings() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Smartphone className="w-4 h-4 text-muted-foreground" />
-                <h2 className="text-base font-semibold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Two-Factor Authentication</h2>
+                <h2 className="text-lg font-semibold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Two-Factor Authentication</h2>
               </div>
               {user?.totpEnabled ? (
                 <Badge variant="default" className="text-xs gap-1 bg-green-600 hover:bg-green-700" data-testid="badge-2fa-enabled">
@@ -159,7 +167,7 @@ export default function Settings() {
               )}
             </div>
 
-            <p className="text-xs text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Secure your account with an authenticator app (Google Authenticator, Authy, etc.). This also enables password reset via your authenticator.
             </p>
 
@@ -188,10 +196,10 @@ export default function Settings() {
           </section>
 
           <section className="rounded-xl border border-destructive/30 bg-card p-6">
-            <h2 className="text-base font-semibold text-destructive mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            <h2 className="text-lg font-semibold text-destructive mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
               Danger Zone
             </h2>
-            <p className="text-xs text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Sign out of your account on this device.
             </p>
             <Button

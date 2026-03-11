@@ -65,13 +65,13 @@ export default function CliDocs() {
           </h2>
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+              <p className="text-base text-muted-foreground mb-2 flex items-center gap-2">
                 <span className="font-medium text-foreground">Option 1:</span> Install with npm (if you have Node.js)
               </p>
               <CopyBlock text="npm install -g vpush-cli" label="npm" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+              <p className="text-base text-muted-foreground mb-2 flex items-center gap-2">
                 <span className="font-medium text-foreground">Option 2:</span> Download the file directly
               </p>
               <div className="grid sm:grid-cols-3 gap-3">
@@ -108,7 +108,7 @@ export default function CliDocs() {
           <h2 className="text-xl font-semibold mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
             How It Works
           </h2>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-base text-muted-foreground mb-6">
             VPush CLI lets you download and upload your project files from the terminal. Here's all you need to do:
           </p>
           <div className="space-y-6">
@@ -117,11 +117,11 @@ export default function CliDocs() {
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">1</span>
                 <h3 className="font-medium">Clone your project</h3>
               </div>
-              <p className="text-xs text-muted-foreground mb-2">
+              <p className="text-sm text-muted-foreground mb-2">
                 Open a terminal on your server (or any computer) and run this command. Replace <code className="px-1 py-0.5 rounded bg-muted font-mono">username</code> and <code className="px-1 py-0.5 rounded bg-muted font-mono">project</code> with your actual username and project name from VPush.
               </p>
               <CopyBlock text="vpush username/project" label="clone" />
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-sm text-muted-foreground mt-2">
                 This downloads all your project files into a new folder. If the project is private, you'll be asked for your 4-digit PIN (you can find it on your project's settings page).
               </p>
             </div>
@@ -131,7 +131,7 @@ export default function CliDocs() {
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">2</span>
                 <h3 className="font-medium">Push your changes</h3>
               </div>
-              <p className="text-xs text-muted-foreground mb-2">
+              <p className="text-sm text-muted-foreground mb-2">
                 After you edit files on your server, push them back to VPush so you can see them on the website:
               </p>
               <CopyBlock text="vpush push" label="push" />
@@ -142,15 +142,15 @@ export default function CliDocs() {
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">3</span>
                 <h3 className="font-medium">Pull latest files</h3>
               </div>
-              <p className="text-xs text-muted-foreground mb-2">
+              <p className="text-sm text-muted-foreground mb-2">
                 If you edited files on the VPush website and want to get those changes on your server:
               </p>
               <CopyBlock text="vpush pull" label="pull" />
             </div>
 
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
-              <h3 className="text-sm font-semibold mb-2">That's it!</h3>
-              <p className="text-xs text-muted-foreground">
+              <h3 className="text-base font-semibold mb-2">That's it!</h3>
+              <p className="text-sm text-muted-foreground">
                 No accounts, no tokens, no complicated setup. Just clone once, then push and pull whenever you need. The CLI remembers your project so you don't have to type the name again.
               </p>
             </div>
@@ -192,7 +192,7 @@ export default function CliDocs() {
           <h2 className="text-xl font-semibold mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
             Ignoring Files
           </h2>
-          <p className="text-sm text-muted-foreground mb-3">
+          <p className="text-base text-muted-foreground mb-3">
             Want to skip certain files when pushing? Create a file called <code className="px-1 py-0.5 rounded bg-muted font-mono">.vpushignore</code> in your project folder and list the files or folders you want to skip — one per line.
           </p>
           <div className="rounded-lg border border-border bg-[#0d1117] text-white font-mono text-sm p-4">
@@ -211,7 +211,7 @@ export default function CliDocs() {
             Don't Have npm?
           </h2>
           <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               You can run the CLI directly with Node.js — no npm install needed:
             </p>
             <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">

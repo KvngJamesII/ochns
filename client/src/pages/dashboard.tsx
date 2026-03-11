@@ -86,7 +86,7 @@ export default function Dashboard() {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
             <div>
-              <p className="text-sm text-muted-foreground mb-1" data-testid="text-greeting">
+              <p className="text-base text-muted-foreground mb-1" data-testid="text-greeting">
                 Welcome back, <span className="text-foreground font-medium">{user?.username}</span>
               </p>
               <h1
@@ -98,7 +98,7 @@ export default function Dashboard() {
               </h1>
             </div>
             <div className="flex gap-2">
-              <Link href="/settings">
+              <Link href="/docs/cli">
                 <Button variant="outline" className="gap-2" data-testid="button-cli-setup">
                   <Terminal className="w-4 h-4" />
                   CLI Setup
@@ -115,27 +115,27 @@ export default function Dashboard() {
             <div className="rounded-xl border border-border bg-card p-4" data-testid="stat-total-projects">
               <div className="flex items-center gap-2 mb-2">
                 <FolderOpen className="w-4 h-4 text-primary" />
-                <span className="text-xs text-muted-foreground font-medium">Projects</span>
+                <span className="text-sm text-muted-foreground font-medium">Projects</span>
               </div>
-              <div className="text-xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              <div className="text-2xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                 {projects?.length ?? 0}
               </div>
             </div>
             <div className="rounded-xl border border-border bg-card p-4" data-testid="stat-public-projects">
               <div className="flex items-center gap-2 mb-2">
                 <Globe className="w-4 h-4 text-emerald-500" />
-                <span className="text-xs text-muted-foreground font-medium">Public</span>
+                <span className="text-sm text-muted-foreground font-medium">Public</span>
               </div>
-              <div className="text-xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              <div className="text-2xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                 {projects?.filter((p) => p.visibility === "public").length ?? 0}
               </div>
             </div>
             <div className="rounded-xl border border-border bg-card p-4 col-span-2 sm:col-span-1" data-testid="stat-private-projects">
               <div className="flex items-center gap-2 mb-2">
                 <Lock className="w-4 h-4 text-amber-500" />
-                <span className="text-xs text-muted-foreground font-medium">Private</span>
+                <span className="text-sm text-muted-foreground font-medium">Private</span>
               </div>
-              <div className="text-xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              <div className="text-2xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                 {projects?.filter((p) => p.visibility === "private").length ?? 0}
               </div>
             </div>
@@ -173,7 +173,7 @@ export default function Dashboard() {
             <h3 className="text-lg font-semibold mb-2">
               {searchQuery ? "No matching projects" : "No projects yet"}
             </h3>
-            <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
+            <p className="text-base text-muted-foreground mb-6 max-w-sm mx-auto">
               {searchQuery
                 ? "Try a different search term"
                 : "Create your first project to start pushing and pulling files"}
@@ -199,7 +199,7 @@ export default function Dashboard() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <FolderOpen className="w-4.5 h-4.5 text-primary" />
-                      <h3 className="font-semibold text-sm truncate">{project.name}</h3>
+                      <h3 className="font-semibold text-base truncate">{project.name}</h3>
                     </div>
                     <Badge
                       variant={project.visibility === "public" ? "secondary" : "outline"}
@@ -221,7 +221,7 @@ export default function Dashboard() {
                   )}
 
                   <div className="flex items-center justify-between mt-auto pt-3 border-t border-border/50">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                       <Calendar className="w-3 h-3" />
                       {new Date(project.createdAt).toLocaleDateString("en-US", {
                         month: "short",

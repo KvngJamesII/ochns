@@ -247,6 +247,14 @@ export async function registerRoutes(
       const user = req.user as any;
       const data = insertProjectSchema.parse(req.body);
       const project = await storage.createProject(user.id, data);
+      
+      // Auto-generate auth PIN for private projects
+      if (project.visibility === "private" && !project.authPin) {
+        const pin = String(Math.floor(1000 + Math.random() * 9000));
+        const updated = await storage.updateProject(project.id, { authPin: pin });
+        return res.json(updated || project);
+      }
+      
       return res.json(project);
     } catch (err: any) {
       return res.status(400).json({ message: err.message });
@@ -309,6 +317,11 @@ export async function registerRoutes(
       }
       if (updates.visibility && !["public", "private"].includes(updates.visibility)) {
         return res.status(400).json({ message: "Visibility must be 'public' or 'private'" });
+      }
+
+      // Auto-generate auth PIN when switching to private
+      if (updates.visibility === "private" && !project.authPin) {
+        updates.authPin = String(Math.floor(1000 + Math.random() * 9000));
       }
 
       const updated = await storage.updateProject(project.id, updates);

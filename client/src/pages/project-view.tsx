@@ -228,7 +228,7 @@ export default function ProjectView() {
   const pinHeader = authPin ? { "x-auth-pin": authPin } : {};
 
   const { data: project, isLoading: projectLoading } = useQuery<any>({
-    queryKey: ["/api/projects", projectId],
+    queryKey: ["/api/projects", projectId, authPin],
     queryFn: async () => {
       const res = await fetch(`/api/projects/${projectId}`, {
         credentials: "include",
@@ -468,7 +468,7 @@ export default function ProjectView() {
           >
             Private Project
           </h1>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-base text-muted-foreground mb-6">
             Enter the Auth PIN to access this project
           </p>
           <form onSubmit={handlePinSubmit} className="space-y-3">
@@ -518,11 +518,11 @@ export default function ProjectView() {
               </Badge>
             </div>
             {project.description && (
-              <p className="text-sm text-muted-foreground mt-1">{project.description}</p>
+              <p className="text-base text-muted-foreground mt-1">{project.description}</p>
             )}
             <button
               onClick={copyUrl}
-              className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors font-mono"
+              className="flex items-center gap-1.5 mt-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-mono"
               data-testid="button-copy-url"
             >
               {copiedUrl ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
