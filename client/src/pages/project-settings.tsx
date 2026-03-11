@@ -60,7 +60,7 @@ export default function ProjectSettings() {
   const { data: project, isLoading } = useQuery<any>({
     queryKey: ["/api/projects", projectId],
     queryFn: async () => {
-      const res = await fetch(`/api/projects/${projectId}?owner=${encodeURIComponent(username)}`, { credentials: "include" });
+      const res = await fetch(`/api/projects/${projectId}?owner=${encodeURIComponent(username)}`, { credentials: "include", cache: "no-store" });
       if (!res.ok) throw new Error("Project not found");
       return res.json();
     },

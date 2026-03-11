@@ -233,6 +233,7 @@ export default function ProjectView() {
       const res = await fetch(`/api/projects/${projectId}?owner=${encodeURIComponent(username)}`, {
         credentials: "include",
         headers: authPin ? { "x-auth-pin": authPin } : {},
+        cache: "no-store",
       });
       if (!res.ok) throw new Error("Project not found");
       return res.json();
@@ -247,6 +248,7 @@ export default function ProjectView() {
         {
           credentials: "include",
           headers: authPin ? { "x-auth-pin": authPin } : {},
+          cache: "no-store",
         }
       );
       if (!res.ok) throw new Error("Failed to load files");
@@ -305,6 +307,7 @@ export default function ProjectView() {
         method: "POST",
         body: formData,
         credentials: "include",
+        cache: "no-store",
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -386,8 +389,9 @@ export default function ProjectView() {
 
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setAuthPin(pinInput);
-    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+    const pin = pinInput.trim();
+    if (!pin) return;
+    setAuthPin(pin);
   };
 
   const navigateToFolder = (file: FileRecord) => {
@@ -406,6 +410,7 @@ export default function ProjectView() {
       const res = await fetch(`/api/files/${file.id}`, {
         credentials: "include",
         headers: authPin ? { "x-auth-pin": authPin } : {},
+        cache: "no-store",
       });
       if (!res.ok) throw new Error("Couldn't load file content");
       const data = await res.json();
